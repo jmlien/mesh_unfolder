@@ -1,7 +1,6 @@
-# mesh_unfolder
-Edge unfolding a triangular mesh
+# mesh unfolder
 
-The program unfolder allows you to generate a polyhedra net for a given 3D mesh.
+### Edge unfolding a triangular mesh developed at George Mason University.
 
 by 
 Jyh-Ming Lien, jmlien@cs.gmu.edu, George Mason University
@@ -10,7 +9,7 @@ Hao Yue, yhao3@gmu.edu, George Mason University
 
 Project webpage: http://masc.cs.gmu.edu/wiki/Origami
 
-
+### The program unfolder allows you to generate a polyhedra net for a given 3D mesh.
 
 This archive contains:
 - README.txt
