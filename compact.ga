@@ -1,0 +1,8 @@
+#####################################
+# unfolding problem
+# goal: find non-overlapping unfolding
+#####################################
+
+problem max-generation=10000 pop-size=2000
+species min-gene=0.0 max-gene=1.0 mutation-prob=0.05 mutation-type=gaussian mutation-stddev=1.0 crossover-prob=0.9 crossover-type=one-point
+breeder tournament-size=2 children-size=40

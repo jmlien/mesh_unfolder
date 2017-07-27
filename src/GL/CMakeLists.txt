@@ -1,0 +1,7 @@
+set(UNFOLDER_SRC
+    ${UNFOLDER_SRC} 
+    ${CMAKE_CURRENT_SOURCE_DIR}/gl2ps.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gli.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gliDump.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gliFont.cpp
+    PARENT_SCOPE)

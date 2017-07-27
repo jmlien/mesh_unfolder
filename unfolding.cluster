@@ -1,0 +1,12 @@
+#####################################
+# unfolding problem
+# goal: find non-overlapping unfolding
+# 
+# note: copied from zhonghua's ga
+#####################################
+problem size=6 cluster=spectral
+#clustering-only 
+#disable-repair
+heuristic method=s runs=400 
+unfold method=ga filename=unfolding.ga 
+paper width=2 height=40

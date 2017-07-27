@@ -1,0 +1,22 @@
+#####################################
+# unfolding problem
+# goal: find non-overlapping unfolding
+#####################################
+
+problem max-generation=5000 pop-size=400
+species min-gene=0.0 max-gene=1.0 mutation-prob=0.02 mutation-type=gaussian mutation-stddev=0.3 crossover-prob=0.4 crossover-type=uniform
+breeder tournament-size=7 children-size=50
+
+# specify what heuristic methods will be used to create individuals
+# Recommened methods:
+#   1. SteepestEdge 
+#   2. FlatTree
+#   3. UnFlatTree
+#   4. RandomEdge
+# optional methods:
+#   5. Random
+#   6. MinimumPerimeter
+#   7. MaximumPerimeter
+#   8. UnSteepestEdge 
+
+creators SteepestEdge FlatTree UnFlatTree RandomEdge
