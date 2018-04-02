@@ -9,7 +9,7 @@ by
 
 #### Project webpage: http://masc.cs.gmu.edu/wiki/Origami
 
-#### The program unfolder allows you to generate a polyhedra net for a given 3D mesh.
+#### The program unfolder allows you to generate a [[https://en.wikipedia.org/wiki/Net_(polyhedron) polyhedra net]] for a given 3D mesh.
 
 #### This archive contains:
 
