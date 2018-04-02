@@ -22,10 +22,14 @@ This archive uses CMake (https://cmake.org/) compiling software and works across
 linux and Mac OS X users can run gen.sh for a quick setup in build/release or build/debug.
 Open GL and glut is required.
 
-*Usage*:
+### Use mesh unfolder ###
+
+Currently the mesh unfolder can only be used from command line. 
+
+**Usage**
 ./unfolder [options] 3d_mesh.obj
 
-*Options*:
+**Options**
 Heuristic Methods
   -h heuristic | use heuristic method
       s        | STEEPEST_EDGE
