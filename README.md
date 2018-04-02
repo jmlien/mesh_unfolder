@@ -3,8 +3,8 @@
 #### Edge unfolding a triangular mesh developed at George Mason University.
 
 by 
-- [Jyh-Ming Lien](https://cs.gmu.edu/~jmlien) , jmlien@cs.gmu.edu, George Mason University
-- [Zhonghua Xi](http://masc.cs.gmu.edu/wiki/ZhonghuaXi) , xizhonghua@gmail.com, George Mason University
+- [Jyh-Ming Lien](https://cs.gmu.edu/~jmlien), jmlien@cs.gmu.edu, George Mason University
+- [Zhonghua Xi](http://masc.cs.gmu.edu/wiki/ZhonghuaXi), xizhonghua@gmail.com, George Mason University
 - [Hao Yue](http://masc.cs.gmu.edu/wiki/YueHao), yhao3@gmu.edu, George Mason University
 
 #### Project webpage: http://masc.cs.gmu.edu/wiki/Origami
