@@ -27,9 +27,11 @@ Open GL and glut is required.
 Currently the mesh unfolder can only be used from command line. 
 
 **Usage**
+
 ./unfolder [options] 3d_mesh.obj
 
 **Options**
+
 Heuristic Methods
   -h heuristic | use heuristic method
       s        | STEEPEST_EDGE
