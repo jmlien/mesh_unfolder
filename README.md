@@ -17,7 +17,7 @@ by
 - mesh unfolder
 - several 3d models in obj or off format
 
-*Compile*:
+### Compile ###
 This archive uses CMake (https://cmake.org/) compiling software and works across linux/Mac OS X/Windows platform.
 linux and Mac OS X users can run gen.sh for a quick setup in build/release or build/debug.
 Open GL and glut is required.
