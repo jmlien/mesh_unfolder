@@ -45,7 +45,7 @@ int main(int argc, char ** argv) {
       dumpModelsToWrl();
     } else if (config.heuristic != CutHeuristic::CLUSTERING) {
       // only dump if find an unfolding
-      dumpUnfolding(true);
+      dumpUnfolding();
     } else {
       // dump wrl for clustering result
       dumpWrl();
@@ -54,6 +54,7 @@ int main(int argc, char ** argv) {
     return 0;
   }
 
+  /////////////////////////////////////////////////////////////////
   //setup glut/gli
   glutInit(&argc, argv);
   glutInitDisplayMode(
@@ -75,4 +76,3 @@ int main(int argc, char ** argv) {
 
   return 0;
 }
-

@@ -1,4 +1,4 @@
-/* 
+/*
  *  Software License Agreement (BSD License)
  *
  *  Copyright (c) 2012, Willow Garage, Inc.
@@ -237,9 +237,9 @@ namespace cv
 		cv::Point min_loc, max_loc;
 		cv::minMaxLoc(A, &min, &max, &min_loc, &max_loc);
 
-		ss << ".spectral_" << w << "_" << h << "_" 
-			               << min << "_" << max << "_" 
-						   << min_loc.x << "_" << min_loc.y << "_" 
+		ss << ".spectral_" << w << "_" << h << "_"
+			               << min << "_" << max << "_"
+						   << min_loc.x << "_" << min_loc.y << "_"
 						   << max_loc.x << max_loc.y << ".txt";
 		return ss.str();
 	}
@@ -305,7 +305,7 @@ namespace cv
 	 * @param normalize the graph laplacian normalization method
 	 */
 	template<typename T>
-	void spectralClustering(const cv::Mat_<T>& A, cv::Mat& idx, unsigned int K, int normalize = LAPLACIAN_UNNORMALIZED) 
+	void spectralClustering(const cv::Mat_<T>& A, cv::Mat& idx, unsigned int K, int normalize = LAPLACIAN_UNNORMALIZED)
 	{
 
 		cv::Mat_<T> L, V, D;
@@ -325,7 +325,7 @@ namespace cv
 
 			save_eigin_matrices(A, L, V, D);
 		}
-		
+
 		// if using the Ng, Jordan and Weiss laplacian, normalize the eigenvectors
 		if (normalize == LAPLACIAN_NG_WEISS) {
 			cout << "normalize the eigenvectors" << endl;
@@ -336,7 +336,6 @@ namespace cv
 		}
 
 		// cluster the results
-		cout << "cluster the results" << endl;
 		cv::Mat_<T> centers;
 		cv::Mat_<float> Vf;
 		cv::TermCriteria term(1, 100, 1e-9);

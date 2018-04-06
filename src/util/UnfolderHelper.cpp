@@ -429,7 +429,109 @@ namespace masc {
                     / (max_cut_length - min_cut_length);
             }
             
-           void UnfolderHelper::dumpStats(std::ostream & out){
+            /*
+
+            void UnfolderHelper::dumpStats(std::ostream & out){
+
+                int num_creases = 0;
+                for (auto & c : this->m_num_children) num_creases += c;
+
+                float avg_branch_len = 0.0f;
+                float max_branch_len = 0.0f;
+                float min_branch_len = 1000.0f;
+                float avg_branch_geo_len = 0.0f;
+                float max_branch_geo_len = 0.0f;
+                float min_branch_geo_len = 1000.0f;
+
+                float avg_dist = 0.0f;
+                float max_dist = 0.0f;
+                float avg_geo_dist = 0.0f;
+                float max_geo_dist = 0.0f;
+
+                int count = 0;
+
+                std::vector<int> branch_len = this->computeBranchLength();
+                std::vector<float> branch_geo_len = this->computeBranchGeoLength();
+                int num_leaf_nodes=0;
+                int num_1_degree_nodes=0;
+                int num_2_degree_nodes=0;
+                int num_3_degree_nodes=0;
+
+                for (int i = 0; i < this->m_num_children.size(); i++) {
+
+                    switch(m_num_children[i]) {
+                    case 0: num_leaf_nodes++; break;
+                    case 1: num_1_degree_nodes++; break;
+                    case 2: num_2_degree_nodes++; break;
+                    case 3: num_3_degree_nodes++; break;
+                    }
+
+                    if(branch_len[i] <= 0) continue;
+                    out << "branch#" << count << " " << branch_len[i] << " " << branch_geo_len[i] << std::endl;
+
+                    avg_branch_len += (float)branch_len[i];
+                    max_branch_len = (float)branch_len[i] > max_branch_len ? (float)branch_len[i] : max_branch_len;
+                    min_branch_len = (float)branch_len[i] < min_branch_len ? (float)branch_len[i] : min_branch_len;
+                    avg_branch_geo_len += branch_geo_len[i];
+                    max_branch_geo_len = branch_geo_len[i] > max_branch_geo_len ? branch_geo_len[i] : max_branch_geo_len;
+                    min_branch_geo_len = branch_geo_len[i] < min_branch_geo_len ? branch_geo_len[i] : max_branch_geo_len;
+                    num_creases += this->m_num_children[i];
+                    count++;
+                }
+
+                int count_dist = 0;
+                const auto m = this->m_unfolder->getModel();
+                for (int i = 0; i < m->t_size; ++i) {
+                    for (int j = i + 1; j < m->t_size; ++j) {
+                        int dist = this->computeDist(i,j);
+                        float geo_dist = this->computeGeoDist(i,j);
+
+                        if (dist < 1) continue;
+                        avg_dist += (float)dist;
+                        max_dist = (float)dist > max_dist ? (float)dist : max_dist;
+                        avg_geo_dist += geo_dist;
+                        max_geo_dist = geo_dist > max_geo_dist ? geo_dist : max_geo_dist;
+                        count_dist++;
+                    }
+                }
+
+                avg_branch_len = avg_branch_len/(float)count;
+                avg_branch_geo_len = avg_branch_geo_len/(float)count;
+                avg_dist = avg_dist/(float)count_dist;
+                avg_geo_dist = avg_geo_dist/(float)count_dist;
+
+
+                out << "Heuristic " << (int)m_unfolder->getConfig().heuristic << std::endl;
+                //out <<"Number of Creases " << num_creases << std::endl;
+                out <<"AverageDegree " << (float)num_creases/(float)(this->m_num_children.size()-num_leaf_nodes) << std::endl;
+                out <<"AverageBranchLength " << avg_branch_len << std::endl;
+                out <<"MaxBranchLength " << max_branch_len << std::endl;
+                out <<"MinBranchLength " << min_branch_len << std::endl;
+                out <<"AverageGeodesicBranchLength " << avg_branch_geo_len << std::endl;
+                out <<"MaxGeodesicBranchLength " << max_branch_geo_len << std::endl;
+                out <<"MinGeodesicBranchLength " << min_branch_geo_len << std::endl;
+
+                float cut_length = this->getTotalCutLength();
+                float border_cuts_length = this->computeBorderCutsLength();
+                out <<"CutLength " << cut_length << std::endl;
+                out <<"BorderCutsLength " << border_cuts_length << std::endl;
+                out <<"BorderCutsNormalized " << border_cuts_length/cut_length << std::endl;
+
+                out <<"AverageNodeDistance " << avg_dist << std::endl;
+                out <<"MaxNodeDistance " << max_dist << std::endl;
+                out <<"AverageNodeGeodesicDistance " << avg_geo_dist << std::endl;
+                out <<"MaxNodeGeodesicDistance " << max_geo_dist << std::endl;
+                out <<"NumberOfLeafNodes " << num_leaf_nodes << std::endl;
+                out <<"NumberOfOneDegreeNodes " << num_1_degree_nodes << std::endl;
+                out <<"NumberOfTwoDegreeNodes " << num_2_degree_nodes << std::endl;
+                out <<"NumberOfThreeDegreeNodes " << num_3_degree_nodes << std::endl;
+                out <<"Diameter " << this->computeDiameter() << std::endl;
+                out <<"SplitVertexDist " << this->computeVertexDistFromSameParent() << std::endl;
+                m_unfolder->unfoldTo(1.0);
+                out <<"HullArea " << m_unfolder->getHullArea() << std::endl;
+            }
+*/
+            void UnfolderHelper::dumpStats(std::ostream & out){
                 
                 this->m_unfolder->rebuildModel();
                 

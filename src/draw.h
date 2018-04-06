@@ -549,17 +549,22 @@ void dumpUnfolding(bool flattened_only = false) {
     if (flattened_only && !u->isFlattened())
       continue;
 
-    string prefix;
-    const auto base_name = u->getFilename().substr(0,
+    string prefix = u->getConfig().output_file;
+
+    if (prefix.empty()) {
+
+      const auto base_name = u->getFilename().substr(0,
           u->getFilename().find_last_of("."));
-    prefix = base_name + "_" + std::to_string(u->getClusterId())
+      prefix = base_name + "_" + std::to_string(u->getClusterId())
           + (u->getConfig().no_tick ? "" : "_s" + std::to_string(config.seed));
+
+    }
 
     u->dumpOri(prefix + ".ori");
     u->dumpSVG(prefix + ".svg", ExportSVGType::NORMAL);
     UnfolderHelper uh(u);
     uh.dumpStats(prefix+ ".ustats");
-      if(u->getConfig().training_mode == false) {
+    if(u->getConfig().training_mode == false) {
 
           // only dump weights when its not from a file
           if (u->getConfig().weights_filename.length() == 0 || u->getConfig().heuristic == CutHeuristic::GA)
@@ -568,7 +573,8 @@ void dumpUnfolding(bool flattened_only = false) {
           u->dumpSVG(prefix + "_net.svg", ExportSVGType::NET);
           u->dumpSVG(prefix + "_cut.svg", ExportSVGType::CUT);
           u->dumpSVG(prefix + "_tree.svg", ExportSVGType::TREE);
-      }
+          u->dumpSVG(prefix + "_texture.svg", ExportSVGType::TEXTURE);
+    }
   }
 }
 
@@ -854,6 +860,7 @@ void Keyboard(unsigned char key, int x, int y) {
       u->dumpSVG("tmp_normal.svg", ExportSVGType::NORMAL);
       u->dumpSVG("tmp_cut.svg", ExportSVGType::CUT);
       u->dumpSVG("tmp_tree.svg", ExportSVGType::TREE);
+      u->dumpSVG("tmp_texture.svg", ExportSVGType::TEXTURE);
     }
     break;
   case '3':

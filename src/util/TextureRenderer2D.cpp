@@ -25,10 +25,11 @@ TextureRenderer2D::TextureRenderer2D(const std::string& texture_path) :
 
   std::cerr << "- [TextureRenderer2D::TextureRenderer2D] Reading texture from "
       << texture_path << std::endl;
-  m_texture = cv::imread(m_texture_path, CV_LOAD_IMAGE_COLOR);
 
-  m_texture_width = m_texture.size[0];
-  m_texture_height = m_texture.size[1];
+  cv::Mat tmp = cv::imread(m_texture_path, CV_LOAD_IMAGE_COLOR);
+  cv::flip(tmp, m_texture, 0); //vertical flip texture as openGL's UV origin is at lower left...
+  m_texture_width = m_texture.cols;
+  m_texture_height = m_texture.rows;
 
   std::cerr << "- [TextureRenderer2D::TextureRenderer2D] Texture loaded size: "
       << m_texture_width << "*" << m_texture_height << std::endl;
@@ -55,6 +56,7 @@ void TextureRenderer2D::SetCanvasSize(int width, int height) {
   m_canvas = cv::Scalar(0, 0, 0, 0);
 }
 
+//TODO: change this into openGL based method?
 bool TextureRenderer2D::Render(const Vector2d& p0, const Vector2d& p1,
     const Vector2d& p2, const Vector2d& uv0, const Vector2d& uv1,
     const Vector2d& uv2) {
@@ -63,8 +65,7 @@ bool TextureRenderer2D::Render(const Vector2d& p0, const Vector2d& p1,
   vector<cv::Point2f> dstTri(3);
 
   // Create an temp canvas for drawing
-  cv::Mat canvas = cv::Mat(m_canvas_height, m_canvas_width, CV_8UC4,
-      cv::Scalar(0, 0, 0, 0));
+  cv::Mat canvas = cv::Mat(m_canvas_height, m_canvas_width, CV_8UC4,cv::Scalar(0, 0, 0, 0));
 
   /// Set your 3 points to calculate the  Affine Transform
   srcTri[0] = cv::Point2f(uv0[0] * m_texture_width, uv0[1] * m_texture_height);
@@ -76,15 +77,17 @@ bool TextureRenderer2D::Render(const Vector2d& p0, const Vector2d& p1,
   dstTri[2] = cv::Point2f(p2[0], p2[1]);
 
   // coordinates in int
-  vector<cv::Point2i> srcTriCropped;
+  vector<cv::Point> srcTriCropped;
 
-  for (const auto pt : srcTri)
-    srcTriCropped.push_back(cv::Point2i(pt.x + 0.5, pt.y + 0.5));
-
+  for (const auto& pt : srcTri)
+  {
+    srcTriCropped.push_back(cv::Point(pt.x + 0.5, pt.y + 0.5));
+    //srcTriCropped.push_back(cv::Point(pt.x, pt.y));
+  }
   // Get mask by filling triangle
-  cv::Mat mask = cv::Mat(m_texture_height, m_texture_width, CV_8U,
-      cv::Scalar(0));
-  cv::fillConvexPoly(mask, srcTriCropped, cv::Scalar(255), cv::LINE_AA, 0);
+
+  cv::Mat mask = cv::Mat(m_texture_height, m_texture_width, CV_8U, cv::Scalar(0));
+  cv::fillConvexPoly(mask, srcTriCropped, cv::Scalar(255), 8); //cv::LINE_AA, 0);
 
   cv::Mat masked_texture;
   m_texture.copyTo(masked_texture, mask);
@@ -96,12 +99,13 @@ bool TextureRenderer2D::Render(const Vector2d& p0, const Vector2d& p1,
   cv::warpAffine(masked_texture, canvas, warp_mat, canvas.size(),
       cv::INTER_LINEAR, cv::BORDER_TRANSPARENT);
 
-  vector<cv::Point2i> dstTriCropped;
+  vector<cv::Point> dstTriCropped;
   for (const auto pt : dstTri)
-    dstTriCropped.push_back(cv::Point2i(pt.x + 0.5, pt.y + 0.5));
+    //dstTriCropped.push_back(cv::Point(pt.x, pt.y));
+    dstTriCropped.push_back(cv::Point(pt.x + 0.5, pt.y + 0.5));
 
   mask = cv::Mat(m_canvas_height, m_canvas_width, CV_8U, cv::Scalar(0));
-  cv::fillConvexPoly(mask, dstTriCropped, cv::Scalar(255), cv::LINE_AA, 0);
+  cv::fillConvexPoly(mask, dstTriCropped, cv::Scalar(255), 8); // cv::LINE_AA, 0);
   canvas.copyTo(m_canvas, mask);
 
 //  const string dump_path = DirPath(m_texture_path) + "/dump_"

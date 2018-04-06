@@ -51,8 +51,8 @@ bool Problem::setup(const string& filename) {
   ifstream in;
   in.open(filename, ios_base::in);
   if (!in.good()) {
-    cerr << "!Error in Problem::setup. Can not open file = " << filename
-        << endl;
+    cerr << "- [GA] ! Error in Problem::setup. Can not open file = " << filename
+         << endl;
     return false;
   }
 
@@ -136,11 +136,12 @@ void Problem::init() {
   //nothing to do here
 }
 
-void Problem::print(ostream& out) const {
-  out << "problem max-generation=" << this->m_max_generateions << " pop-size="
+void Problem::print(ostream& out) const
+{
+  out << "- [GA] problem max-generation=" << this->m_max_generateions << " pop-size="
       << this->m_population_size << endl;
 
-  out << "creators=";
+  out << "- [GA] creators=";
   for (const string& creator : m_creator_methods)
     out << creator << " ";
   out << endl;
@@ -172,7 +173,8 @@ void Problem::run() {
   cerr << endl;
 }
 
-void Problem::generationDone(int generation) {
+void Problem::generationDone(int generation)
+{
   auto gen_best = this->getBestIndividual();
 
   if (gen_best->getFitness() > this->m_best_ind.getFitness()) {
@@ -192,9 +194,9 @@ void Problem::generationDone(int generation) {
 
   cerr << std::fixed << std::setprecision(4);
 
-  cerr << " - generation = " << generation << ", time = " << time_in_sec
-      << " s, best = " << gen_best->getFitness() << ", avg = " << avg_fitness
-      << ", ";
+  cerr << "- [GA]  generation = " << generation << ", time = " << time_in_sec
+       << " s, best = " << gen_best->getFitness() << ", avg = " << avg_fitness
+       << ", ";
 
   this->m_gen_avg_fitness.push_back(avg_fitness);
   this->m_gen_best_fitness.push_back(gen_best->getFitness());
@@ -228,8 +230,9 @@ void Problem::mergePopulation(const vector<Individual*>& children) {
   }
 }
 
-void Problem::generatePopulation() {
-  cout << " - generating population..." << endl;
+void Problem::generatePopulation()
+{
+  cout << "- [GA]  generating population..." << endl;
 
   for (int i = 0; i < this->m_population_size; ++i) {
     auto ind = this->generateIndividual();
@@ -240,12 +243,12 @@ void Problem::generatePopulation() {
 
     if (ind->getFitness() > this->m_best_ind.getFitness()) {
       this->m_best_ind = *ind;
-      cout << " - [" << i << "/" << m_population_size << "] best so far = "
-          << m_best_ind.getFitness() << endl;
+      cout << "- [GA]  [" << i << "/" << m_population_size << "] best so far = "
+           << m_best_ind.getFitness() << "\r";
     }
   }
 
-  cout << " - finished" << endl;
+  cout << "\n- [GA]  finished" << endl;
 }
 
 Individual* Problem::getBestIndividual() {

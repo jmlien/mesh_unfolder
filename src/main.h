@@ -235,6 +235,10 @@ bool parseArg(int argc, char ** argv) {
       config.grid_height = std::stoi(argv[++i]);
     } else if (arg == "-piles") {
       config.piles = std::stoi(argv[++i]);
+    } else if (arg == "-paramsfile") {
+      config.params_file_path = argv[++i];
+    } else if (arg == "-outputfile") {
+      config.output_file = argv[++i];
     } else if (arg == "-polygon") {
       config.stencil_filename = argv[++i];
     } else if (arg[0] == '-') {
@@ -291,7 +295,7 @@ void printUsage(char * name) {
 
   cerr << "  -weights fn  | using the specify weights to unfold the mesh.\n";
 
-  cerr << "  -q           | quite mode.\n";
+  cerr << "  -q           | quiet mode.\n";
 
   cerr << "  -bf          | specify the base face.\n";
 
@@ -309,9 +313,9 @@ void printUsage(char * name) {
 
   cerr <<"Net Optimization\n";
   cerr << "  -objective # | specify the objective for optimization\n";
-  cerr << "     hull_area\n";
-  cerr << "     cut_length\n\n";
-  cerr << "     polygon\n\n";
+  cerr << "     hull_area (minimize convex hull area)\n";
+  cerr << "     cut_length (minimize cut edge length)\n\n";
+  cerr << "     polygon (caging polygon, see -polygon)\n\n";
 
   cerr <<"Polygon Net Optimization\n";
   cerr << "  -polygon stencil_image.png/jpg | specify polygon for optimization\n";
@@ -331,7 +335,7 @@ void printUsage(char * name) {
 
   cerr << endl;
   cerr << "-- Complied on " << __DATE__ << endl;
-  cerr << "-- Report bugs to: Zhonghua Xi zxi@gmu.edu" << endl;
+  cerr << "-- Report bugs to: Jyh-Ming Lien jmlien@cs.gmu.edu" << endl;
 }
 
 //-----------------------------------------------------------------------------
@@ -383,7 +387,8 @@ inline void run_cluster_unfolder(Unfolder* unfolder)
   }
 } //run_cluster_unfolder()
 
-bool readfromfiles() {
+bool readfromfiles()
+{
   long vsize = 0;
   long fsize = 0;
 
@@ -397,18 +402,22 @@ bool readfromfiles() {
     mathtool::srand48(config.seed);
     srand(config.seed);
 
-    cout << "- [" << ++id << "/" << filenames.size() << "] Start reading "
-        << filename << endl;
+    if(!config.quite)
+      cout << "- [" << ++id << "/" << filenames.size() << "] Start reading "
+           << filename << endl;
 
     config.filename = filename;
 
     model* m = new model();
-    if (!m->build(config.filename)) {
+    if (!m->build(config.filename, config.quite))
+    {
       delete m;
       return false;
     }
-    cout << "- Done reading " << m->v_size << " vertices and " << m->t_size
-        << " facets" << endl;
+
+    if(!config.quite)
+      cout << "- Done reading " << m->v_size << " vertices and " << m->t_size
+          << " facets" << endl;
 
     Unfolder* unfolder = new Unfolder(m, config);
     unfolder->measureModel();
@@ -488,16 +497,16 @@ bool readfromfiles() {
 
     cout << string(40, '-') << endl;
 
-    if (unfolder->getCheckOverlappingCalls() > 0) {
+    if (unfolder->getCheckOverlappingCalls() > 0 && !config.quite) {
       cout << "- Total CO calls  = " << unfolder->getCheckOverlappingCalls()
-          << endl;
+           << endl;
       cout << "- Total CO time   = "
-          << unfolder->getTotalCheckOverlappingTime() * 1.0 / CLOCKS_PER_SEC
-          << " s" << endl;
+           << unfolder->getTotalCheckOverlappingTime() * 1.0 / CLOCKS_PER_SEC
+           << " s" << endl;
       cout << "- Average CO time = "
-          << unfolder->getTotalCheckOverlappingTime() * 1.0
+           << unfolder->getTotalCheckOverlappingTime() * 1.0
               / unfolder->getCheckOverlappingCalls() / CLOCKS_PER_SEC << " s"
-          << endl;
+           << endl;
     }
 
     //cerr << "isFlattened = " << unfolder->isFlattened() << endl;

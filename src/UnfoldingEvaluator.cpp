@@ -42,6 +42,226 @@ double OverlappingEvaluator::evaluate(masc::ga::Individual* ind) {
   return fitness;
 }
 
+// /*
+// ///////////////////////////////////////////////////////////////////////////////
+// // Learning Evaluator
+// ///////////////////////////////////////////////////////////////////////////////
+// double LearningEvaluator::evaluate(masc::ga::Individual* ind) {
+//
+//     // Build from weights, check global overlaps
+//     const auto global_overlaps = this->m_unfolder->buildFromWeights(
+//                                                                     ind->getGenome());
+//
+//     // Check local overlaps
+//     const auto local_overlaps = this->m_unfolder->checkLocalOverlaps();
+//
+//     //if (m_params->count("w_overlap")) {
+//     //fitness -= (global_overlaps + local_overlaps * 1e6)
+//     //* atof(m_params->find("w_overlap")->second.c_str());
+//     //}
+//
+//     // use default overlapping check
+//     double fitness = -(global_overlaps + local_overlaps * 100);
+//
+//     const auto& config = this->m_unfolder->getConfig();
+//
+//     this->m_unfolder->rebuildModel();
+//
+//     if (this->m_unfolder->isFlattened()) {
+//
+//         if (m_params->count("w_bias"))
+//         fitness = 100;//atof(m_params->find("w_bias")->second.c_str());
+//         else
+//         fitness = 100;
+//         int w_count = 0;
+//
+//         util::UnfolderHelper unfolder_helper(m_unfolder);
+//
+//         int num_leaf_nodes=0;
+//         int num_1_degree_nodes=0;
+//         int num_2_degree_nodes=0;
+//         int num_3_degree_nodes=0;
+//         int total_degrees=0;
+//
+//         for (int i = 0; i < unfolder_helper.m_num_children.size(); i++) {
+//
+//             switch(unfolder_helper.m_num_children[i]) {
+//                 case 0: num_leaf_nodes++; break;
+//                 case 1: num_1_degree_nodes++; break;
+//                 case 2: num_2_degree_nodes++; break;
+//                 case 3: num_3_degree_nodes++; break;
+//             }
+//             total_degrees += unfolder_helper.m_num_children[i];
+//
+//         }
+//
+//
+//         if (m_params->count("w_cutlength")) {
+//             //cout << "cutlength = " << unfolder_helper.getTotalCutLengthNormalized() << endl;
+//             fitness += unfolder_helper.getTotalCutLengthNormalized()
+//             * atof(m_params->find("w_cutlength")->second.c_str());
+//             w_count++;
+//         }
+//
+//         if (m_params->count("w_hullarea")) {
+//             //cout << "huallarea = " << this->m_unfolder->getHullArea() << endl;
+//
+//             fitness += this->m_unfolder->getModel()->surface_area
+//             / this->m_unfolder->getHullArea()
+//             * atof(m_params->find("w_hullarea")->second.c_str());
+//             w_count++;
+//         }
+//
+//
+//         if (m_params->count("w_num_leaf_nodes")) {
+//             //cout << "num_leaf_nodes = " <<  (double) num_leaf_nodes / (double)total_degrees << endl;
+//             fitness += (double) num_leaf_nodes / (double)total_degrees
+//             * atof(m_params->find("w_num_leaf_nodes")->second.c_str());
+//             w_count++;
+//         }
+//
+//         if (m_params->count("w_num_1_degree_nodes")) {
+//             //cout << "num_1_degree_nodes = " << (double) num_1_degree_nodes / (double)total_degrees << endl;
+//             fitness += (double) num_1_degree_nodes / (double)total_degrees
+//             * atof(m_params->find("w_num_1_degree_nodes")->second.c_str());
+//             w_count++;
+//         }
+//
+//         if (m_params->count("w_num_2_degree_nodes")) {
+//             //cout << "num_2_degree_nodes = " << (double) num_2_degree_nodes / (double)total_degrees << endl;
+//             fitness += (double) num_2_degree_nodes / (double)total_degrees
+//             * atof(m_params->find("w_num_2_degree_nodes")->second.c_str());
+//             w_count++;
+//         }
+//
+//         if (m_params->count("w_border_cuts")) {
+//             //cout << " border_cuts " << (double)unfolder_helper.computeBorderCutsLength() << endl;
+//             fitness += (double)unfolder_helper.computeBorderCutsLength()
+//             / (double) unfolder_helper.getTotalCutLength()
+//             * atof(m_params->find("w_border_cuts")->second.c_str());
+//             w_count++;
+//         }
+//         //cout << "Learning " << w_count << " parameters ..." << endl;
+//         //cout << "Learning fittness = " << fitness << endl;
+//         //cout << "n1d = " << num_leaf_nodes << endl;
+//         //cout << "n2d = " << num_1_degree_nodes << endl;
+//
+//     }
+//
+//     return fitness;
+// }*/
+
+
+double LearningEvaluator::evaluate(masc::ga::Individual* ind) {
+
+    // Build from weights, check global overlaps
+    const auto global_overlaps = this->m_unfolder->buildFromWeights(
+                                                                        ind->getGenome());
+    // Check local overlaps
+    const auto local_overlaps = this->m_unfolder->checkLocalOverlaps();
+
+    //if (m_params->count("w_overlap")) {
+    //fitness -= (global_overlaps + local_overlaps * 1e6)
+    //* atof(m_params->find("w_overlap")->second.c_str());
+    //}
+
+    // use default overlapping check
+    double fitness = -(global_overlaps + local_overlaps * 100);
+    double diff = 0.0;
+
+    const auto& config = this->m_unfolder->getConfig();
+
+    this->m_unfolder->rebuildModel();
+
+    if (this->m_unfolder->isFlattened()) {
+
+        if (m_params->count("w_bias"))
+            fitness = atof(m_params->find("w_bias")->second.c_str());
+        else
+            fitness = 0.0;
+        int w_count = 0;
+
+        double SCALE = 1.0;
+
+        util::UnfolderHelper unfolder_helper(m_unfolder);
+
+        int num_leaf_nodes=0;
+        int num_1_degree_nodes=0;
+        int num_2_degree_nodes=0;
+        int num_3_degree_nodes=0;
+        int total_degrees=0;
+
+        for (int i = 0; i < unfolder_helper.m_num_children.size(); i++) {
+
+            switch(unfolder_helper.m_num_children[i]) {
+            case 0: num_leaf_nodes++; break;
+            case 1: num_1_degree_nodes++; break;
+            case 2: num_2_degree_nodes++; break;
+            case 3: num_3_degree_nodes++; break;
+            }
+            total_degrees += unfolder_helper.m_num_children[i];
+
+        }
+
+        if (m_params->count("w_cutlength")) {
+            //cout << "cutlength = " << unfolder_helper.getTotalCutLengthNormalized() << endl;
+            diff = unfolder_helper.getTotalCutLengthNormalized()
+                - atof(m_params->find("w_cutlength")->second.c_str());
+            fitness = fitness-diff*diff*SCALE+2.0*SCALE;
+            w_count++;
+        }
+
+        if (m_params->count("w_hullarea")) {
+            //cout << "huallarea = " << this->m_unfolder->getModel()->surface_area / this->m_unfolder->getHullArea() << endl;
+
+            diff = this->m_unfolder->getModel()->surface_area
+                / this->m_unfolder->getHullArea()
+                - atof(m_params->find("w_hullarea")->second.c_str());
+            fitness = fitness-diff*diff*SCALE+2.0*SCALE;
+            w_count++;
+        }
+
+        if (m_params->count("w_num_leaf_nodes")) {
+            //cout << "num_leaf_nodes = " <<  (double) num_leaf_nodes / (double)total_degrees << endl;
+            diff = (double) num_leaf_nodes / (double)total_degrees
+                - atof(m_params->find("w_num_leaf_nodes")->second.c_str());
+            fitness = fitness-diff*diff*SCALE+2.0*SCALE;
+            w_count++;
+        }
+
+        if (m_params->count("w_num_1_degree_nodes")) {
+            //cout << "num_1_degree_nodes = " << (double) num_1_degree_nodes / (double)total_degrees << endl;
+            diff = (double) num_1_degree_nodes / (double)total_degrees
+                - atof(m_params->find("w_num_1_degree_nodes")->second.c_str());
+            fitness = fitness-diff*diff*SCALE+2.0*SCALE;
+            w_count++;
+        }
+
+        if (m_params->count("w_num_2_degree_nodes")) {
+            //cout << "num_2_degree_nodes = " << (double) num_2_degree_nodes / (double)total_degrees << endl;
+            diff = (double) num_2_degree_nodes / (double)total_degrees
+                - atof(m_params->find("w_num_2_degree_nodes")->second.c_str());
+            fitness = fitness-diff*diff*SCALE+2.0*SCALE;
+            w_count++;
+        }
+
+        if (m_params->count("w_border_cuts")) {
+            //cout << " border_cuts " << (double)unfolder_helper.computeBorderCutsLength() / (double) unfolder_helper.getTotalCutLength() << endl;
+            diff = (double)unfolder_helper.computeBorderCutsLength()
+                / (double) unfolder_helper.getTotalCutLength()
+                - atof(m_params->find("w_border_cuts")->second.c_str());
+            fitness = fitness-diff*diff*SCALE+2.0*SCALE;
+            w_count++;
+        }
+        //cout << "Learning " << w_count << " parameters ..." << endl;
+        //cout << "Learning fittness = " << fitness << endl;
+        //cout << "n1d = " << num_leaf_nodes << endl;
+        //cout << "n2d = " << num_1_degree_nodes << endl;
+
+    }
+    return fitness;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // AreaEvaluator
 ///////////////////////////////////////////////////////////////////////////////

@@ -35,7 +35,8 @@ model& getQ() {
 // as well as edges will be build also using model graph
 //
 
-bool model::build(const string & name) {
+bool model::build(const string & name, bool quiet)
+{
   MeshReader* reader = nullptr;
 
   if (name.find(".obj") == name.length() - 4) {
@@ -56,8 +57,9 @@ bool model::build(const string & name) {
 
   objModel& data = reader->getModel();
   this->texture_path = reader->GetTexturePath();
+  this->material_path= reader->GetMaterialPath();
 
-  bool result = build(data);
+  bool result = build(data, quiet);
 
   delete reader;
 
@@ -77,13 +79,14 @@ bool model::build(const string & name) {
 }
 
 bool model::build(const vector<Vector3d>& vertices,
-    const vector<vector<int>>& faces) {
+                  const vector<vector<int>>& faces,
+                  bool quiet)
+{
   objModel data(vertices, faces);
-
-  return this->build(data);
+  return this->build(data, quiet);
 }
 
-bool model::build(const objModel& data) {
+bool model::build(const objModel& data, bool quiet) {
 
   //allocate memory
   v_size = data.pts.size();
@@ -96,20 +99,20 @@ bool model::build(const objModel& data) {
   tris.resize(t_size);     //
   //  assert(vertices && tris);        //make sure enough memory
 
-//copy vertices
+  //copy vertices
   for (uint i = 0; i < v_size; i++) {
     vertices[i].p.set(&data.pts[i].x);
     vertices[i].bk_p = vertices[i].p;  //backup for modification
   }
 
-  cout << v_size << " vertices copied!" << endl;
+  //cout << v_size << " vertices copied!" << endl;
 
   // copy texture vertices
   for (uint i = 0; i < vt_size; ++i) {
     texture_pts[i].set(data.textures[i].x, data.textures[i].y);
   }
 
-  cout << vt_size << " texture vertices copied!" << endl;
+  //cout << vt_size << " texture vertices copied!" << endl;
 
   //copy triangles
   int tid = 0;
@@ -138,7 +141,7 @@ bool model::build(const objModel& data) {
     tid++;
   }
 
-  cout << t_size << " triangles copied!" << endl;
+  //cout << t_size << " triangles copied!" << endl;
 
   {  //build model graph and collect informations
     this->e_boundary_size = 0;
@@ -244,8 +247,8 @@ bool model::build(const objModel& data) {
 
       if (e.type != 'p')
         continue;
-      
-      
+
+
 
       // check whether the edge is diagonal edge of a quad
       const auto& t1 = tris[e.fid[0]];
@@ -276,8 +279,8 @@ bool model::build(const objModel& data) {
 
       const auto dot1 = e_p1 * e_n2;
       const auto dot2 = e_p2 * e_n1;
-      
-      
+
+
 
 #define SMALL_NUMBER (1e-3)
 
@@ -348,12 +351,13 @@ bool model::build(const objModel& data) {
     } //end i
   }
 
-  cout << "- v_size = " << v_size << " t_size = " << t_size << " e_size = "
-      << e_size << endl;
+  if(!quiet)
+    cout << "- v_size (vertex) = " << v_size << " t_size (triangle) = " << t_size << " e_size (edge) = "
+         << e_size << " vt_size (uv) = "<<vt_size<<endl;
 
   this->compute_COM_R();
 
-  cout << "- COM = " << this->COM << " R = " << this->R << endl;
+  if(!quiet) cout << "- COM = " << this->COM << " R = " << this->R << endl;
 
   return true;
 }
@@ -1207,18 +1211,31 @@ void model::buildDualGraph() {
   }
 }
 
-void model::printObj(ostream& out) const {
+void model::printObj(ostream& out) const
+{
   const double tiny = 1e-11;
+  out<<"# created by Mesh Unfolder from masc.cs.gmu.edu\n"
+     <<"# there are "<<vertices.size()<<" vertices and "<<tris.size()<<" triangles\n"
+     <<"mtllib "<<material_path<<"\n";
+
   for (const auto& v : vertices) {
     out << "v";
     out << " " << ((fabs(v.p[0]) < tiny) ? 0 : v.p[0]);
     out << " " << ((fabs(v.p[1]) < tiny) ? 0 : v.p[1]);
     out << " " << ((fabs(v.p[2]) < tiny) ? 0 : v.p[2]);
-    out << endl;
+    out << "\n";
   }
 
-  for (const auto& f : tris)
-    out << "f " << f.v[0] + 1 << " " << f.v[1] + 1 << " " << f.v[2] + 1 << endl;
+  if(!texture_pts.empty())
+  {
+    for (const auto& v : texture_pts) {
+      out << "vt "<<v<<"\n";
+    }
+  }
+
+  if(!texture_pts.empty())
+    for(const auto& f : tris) out << "f " << f.v[0] + 1 << "/" <<f.vt[0] + 1 << " " << f.v[1] + 1<<"/"<<f.vt[1] + 1 << " " << f.v[2] + 1<<"/"<<f.vt[2] + 1 << "\n";
+  else for(const auto& f : tris) out << "f " << f.v[0] + 1 << " " << f.v[1] + 1 << " " << f.v[2] + 1 << "\n";
 }
 
 void model::saveObj(const string& path) const {

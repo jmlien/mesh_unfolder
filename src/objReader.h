@@ -141,6 +141,7 @@ public:
   }
 
   vector<Vpt> pts;
+  vector<Vpt> colors;
   vector<V> textures;
   vector<V> normals;
   list<polygon> polys;
@@ -170,6 +171,7 @@ public:
   }
 
   const std::string& GetTexturePath() const { return this->m_mtl_reader.GetTexturePath(); }
+  const std::string& GetMaterialPath() const {return this->m_mtl_path; }
 
 protected:
   MeshReader() {
@@ -179,7 +181,7 @@ protected:
   string m_filename;
   objModel m_data;
 
-  vector<string> m_mtl_paths;
+  string m_mtl_path;
 
   MTLReader m_mtl_reader;
 };
@@ -240,4 +242,3 @@ protected:
 };
 
 #endif //_OBJ_READER_H_
-

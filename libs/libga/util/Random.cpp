@@ -29,7 +29,7 @@ Random::~Random() {
 
 void Random::setSeed(int seed)
 {
-    cout<<" - Random::setSeed: seed set to "<<seed<<endl;
+    cout<<"- [GA] Random::setSeed: seed set to "<<seed<<endl;
     this->m_uniform_generator.seed(seed);
     this->m_gaussian_generator.seed(seed);
     this->m_uniform_distribution.reset();

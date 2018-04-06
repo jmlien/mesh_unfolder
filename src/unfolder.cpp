@@ -2127,7 +2127,7 @@ int Unfolder::checkOverlaps() {
   if (!m_config.use_rapid) {
 
     bool checked = false;
-    if (F > 500) {
+    if (F > 300) {
       count = checkOverlap_itree();
       if (count != UINT_MAX)
         checked = true; //good
@@ -2149,10 +2149,11 @@ int Unfolder::checkOverlaps() {
       for (int i = 0; i < F; i++) {
         for (int j = i + 1; j < F; j++) {
 
-          if (!boxes[i].intersect(boxes[j]))
-            continue;
+       //   if (!boxes[i].intersect(boxes[j]))
+        //    continue;
 
           if (checkOverlapNew(i, j)) {
+          //if (checkOverlap(i, j)) {
             count++;
           }
         } //end for j

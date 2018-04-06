@@ -52,6 +52,8 @@ protected:
 
   void generationDone(int generation) override;
 
+  bool loadLearningParams(const string& inputFile);
+
   // trim gene
   // 1. avoid to cut diagonal edges
   void trimGene(Individual* ind);

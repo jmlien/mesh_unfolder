@@ -20,10 +20,14 @@ namespace unfolding {
 UnfoldingProblem::UnfoldingProblem(Unfolder* unfolder) {
 
   this->m_unfolder = unfolder;
-  this->m_checker.reset(new PixelChecker(unfolder));
+  //this->m_checker.reset(new PixelChecker(unfolder));
+  //this->m_checker.reset(new ITreeChecker(unfolder));
+  this->m_checker.reset(new BruteForceChecker(unfolder));
 
   if (unfolder->getConfig().pixel_checker) {
     this->m_evaluator.reset(new AreaEvaluator(unfolder));
+  } else if (loadLearningParams(unfolder->getConfig().params_file_path)) {
+    this->m_evaluator.reset(new LearningEvaluator(unfolder, &m_params));
   } else {
     this->m_evaluator.reset(new OverlappingEvaluator(unfolder));
   }
@@ -66,7 +70,7 @@ void UnfoldingProblem::init() {
   return;
 
   // TODO(zxi) one time creators...
-
+#define 0
   this->m_oneshot_spliiters.push_back(
       std::move(std::unique_ptr<Splitter>(new MinimumPerimeterSplitter())));
   this->m_oneshot_spliiters.push_back(
@@ -84,6 +88,8 @@ void UnfoldingProblem::init() {
     cerr << "fitness = " << indPtr->getFitness() << endl;
     this->m_population.push_back(indPtr);
   }
+#endif
+
 }
 
 void UnfoldingProblem::run() {
@@ -262,6 +268,57 @@ void UnfoldingProblem::generationPrint(ostream& out,
     float obj_value = 1.0 / gen_best.getFitness();
     out << " objective = " << obj_value;
   }
+}
+
+bool UnfoldingProblem::loadLearningParams(const string& inputsFile) {
+  if (inputsFile == "")
+    return false;
+
+  istream *input;
+  ifstream infile;
+  istringstream inString;
+
+  infile.open(inputsFile.c_str(), ifstream::in);
+
+  if (!infile) {
+    cerr << "Could not open learning parameter file " << inputsFile << endl;
+    return false;
+  }
+
+  input = &(infile);
+
+  string name;
+  bool fBlockComment = false;
+  while (!input->eof()) {
+
+    // Skip comments and empty lines
+    std::string str;
+    std::getline(*input, str);
+    if (str.length() >= 2 && str.substr(0, 2) == "/*") {
+      fBlockComment = true;
+    } else if (str == "*/") {
+      fBlockComment = false;
+    }
+    if (fBlockComment || str == "" || str[0] == '#') {
+      continue;
+    }
+
+    // otherwise parse strings
+    stringstream s(str);
+    std::string key;
+    std::string value;
+    std::getline(s, key, '\t');      //read thru tab
+    std::getline(s, value);          //read thru newline
+    if (value.empty()) {
+      continue;
+    }
+    m_params[key] = value;
+    std::cout << "Loaded learning paramter " << key << " = "
+        << atof(value.c_str()) << std::endl;
+  }
+
+  infile.close();
+  return true;
 }
 
 } /* namespace unfolding */

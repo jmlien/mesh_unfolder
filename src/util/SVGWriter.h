@@ -41,7 +41,8 @@ enum class ExportSVGType {
   TREE_ONLY = 4,                 // only show the tree, private
   FLAT_EDGES_ONLY = 8,           //
   NUMBERS = 16,                  // show number of cut edges
-  NORMAL = BASIC | NUMBERS,      // basic with numbers
+  TEXTURE = 32,                  // show texture
+  NORMAL = BASIC | NUMBERS | TEXTURE,      // basic with numbers
   NET = BASIC | FLAT_EDGES_ONLY, // show all edges
   TREE = NET | TREE_ONLY,        // net mode with tree
   ALL_EDGES = NORMAL | FLAT_EDGES_ONLY
@@ -65,16 +66,17 @@ inline ExportSVGType operator|(ExportSVGType a, ExportSVGType b) {
 
 class SVGWriter {
 public:
-  // Create an SVG writer, does not own the model.
-  // the model must be flattened onto XZ plane.
-  SVGWriter(const model* model, const Config& config) :
-      inited_(false), model_(model), config_(config) {
-    width_pixel_ = height_pixel_ = 0;
-    font_size_ = 1.0;
-  }
+    // Create an SVG writer, does not own the model.
+    // the model must be flattened onto XZ plane.
+    SVGWriter(const model* model, const Config& config) :
+      inited_(false), model_(model), config_(config)
+    {
+        width_pixel_ = height_pixel_ = 0;
+        font_size_ = 1.0;
+    }
 
     // Initialize the styles, compute the bounding box, boundary, etc.
-  void Init();
+    void Init();
 
     // Get Border Cuts edge list
     list< uint >* GetBorderCuts() {
@@ -82,16 +84,15 @@ public:
         return &this->border_cut_eids_;
     }
 
-  ~SVGWriter() {
-  }
+    ~SVGWriter() { }
 
-  void Save(const string& output_path, ExportSVGType type);
+    void Save(const string& output_path, ExportSVGType type);
 
-  // Find the boundary for the given model.
-  void FindBoundaryPolygon(vector<int>* boundary_vertices);
+    // Find the boundary for the given model.
+    void FindBoundaryPolygon(vector<int>* boundary_vertices);
 
-  // Get the coordinate for a given vertex in the model.
-  Vector3d GetSVGCoord(uint vid) const;
+    // Get the coordinate for a given vertex in the model.
+    Vector3d GetSVGCoord(uint vid) const;
 
 private:
 
@@ -277,6 +278,7 @@ private:
 
   Vector3d PADDING;
 
+  std::string texture_path_;
   std::unique_ptr<TextureRenderer2D> texture_render_;
 
   unordered_map<uint, Tab> tabs_; //the first uint is the eid

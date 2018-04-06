@@ -113,11 +113,8 @@ void SVGWriter::Init() {
 
   const auto scale_factor = config_.scale;
 
-  // Init texture renderer
-  if (!model_->texture_path.empty()) {
-    this->texture_render_.reset(new TextureRenderer2D(model_->texture_path));
-    this->texture_render_->SetCanvasSize(width_pixel_, height_pixel_);
-  }
+  // remember texture path
+  texture_path_=model_->texture_path;
 
 }
 
@@ -138,45 +135,54 @@ void SVGWriter::Save(const string& output_path, ExportSVGType type) {
   this->WriteStyle(out);
 
   // Only writes texture in normal mode.
-  if (texture_render_ != nullptr && type == ExportSVGType::NORMAL)
+  if (!this->texture_path_.empty() && (type & ExportSVGType::TEXTURE) )
+  {
+    this->texture_render_.reset(new TextureRenderer2D(this->texture_path_));
+    assert(this->texture_render_!=nullptr);
+    this->texture_render_->SetCanvasSize(this->width_pixel_, this->height_pixel_);
     this->WriteTexture(out);
+  }
 
   AnalyzeNet();
   if (config_.add_tabs)
     BuildTabs();
 
-  this->WriteBoundaryPolygon(out);
+  //don't write anything else if the texture is the only thing we need
+  if(type != ExportSVGType::TEXTURE)
+  {
+    this->WriteBoundaryPolygon(out);
 
-  if (type == ExportSVGType::CUT) {
-    this->WriteCreases(out);
-    if (this->config_.svg_edge_hints) {
-      //zip line
-      this->WriteZipHints(out);
-      //mark valley fold as well
-      this->WriteValleyCreasesOnly(out);
-      //mark cut edges
-      this->WriteCutEdgeHints(out);
-      //tabs
-      if (config_.add_tabs)
-        WriteTabs(out);
+    if (type == ExportSVGType::CUT) {
+      this->WriteCreases(out);
+      if (this->config_.svg_edge_hints) {
+        //zip line
+        this->WriteZipHints(out);
+        //mark valley fold as well
+        this->WriteValleyCreasesOnly(out);
+        //mark cut edges
+        this->WriteCutEdgeHints(out);
+        //tabs
+        if (config_.add_tabs)
+          WriteTabs(out);
+      }
     }
-  }
 
-  if (type & ExportSVGType::FLAT_EDGES_ONLY) {
-    this->WriteFlatCreases(out);
-  }
+    if (type & ExportSVGType::FLAT_EDGES_ONLY) {
+      this->WriteFlatCreases(out);
+    }
 
-  if (type & ExportSVGType::TREE_ONLY) {
-    this->WriteTree(out);
-  }
+    if (type & ExportSVGType::TREE_ONLY) {
+      this->WriteTree(out);
+    }
 
-  if (type & ExportSVGType::NORMAL) {
-    this->WriteCreasesInColor(out);
-  }
+    if (type & ExportSVGType::NORMAL) {
+      this->WriteCreasesInColor(out);
+    }
 
-  if (type & ExportSVGType::NUMBERS) {
-    this->WriteLabels(out);
-  }
+    if (type & ExportSVGType::NUMBERS) {
+      this->WriteLabels(out);
+    }
+  }//
 
   this->WriteFooter(out);
 
@@ -209,12 +215,13 @@ void SVGWriter::WriteStyle(ostream& out) {
   out << "  </defs>" << endl;
 }
 
-void SVGWriter::WriteTexture(ostream& out) {
-
-  cerr << "writing texture" << endl;
+void SVGWriter::WriteTexture(ostream& out)
+{
+  cerr << "- Writing Texture" << endl;
 
   // For each face
-  for (int fid = 0; fid < model_->t_size; ++fid) {
+  for (int fid = 0; fid < model_->t_size; ++fid)
+  {
     const auto& face = this->model_->tris[fid];
 
     const Vector3d& p0_3d = GetSVGCoord(face.v[0]);

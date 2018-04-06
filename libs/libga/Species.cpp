@@ -79,7 +79,7 @@ bool Species::setup(const vector<string>& tokens)
         }
         else
         {
-            cerr<<"!Error in Species::setup line:"<<__LINE__<<". Unknown token = "<<token<<endl;
+            cerr<<"- [GA] ! Error in Species::setup line:"<<__LINE__<<". Unknown token = "<<token<<endl;
             return false;
         }
     }
@@ -103,7 +103,7 @@ void Species::print(ostream& out)
             this->m_mutation_gaussian_stddev);
 
 
-    out<<buf<<endl;
+    out<<"- [GA] "<<buf<<endl;
 }
 
 
@@ -146,8 +146,7 @@ const int Species::getGenomeSize() const
 void Species::setGenomeSize(int genome_size)
 {
     this->m_genome_size = genome_size;
-
-    cerr<<"!Override! Species::genomeSize = "<<genome_size<<endl;
+    //cerr<<"!Override! Species::genomeSize = "<<genome_size<<endl;
 }
 
 const int Species::getChunkSize() const
@@ -158,8 +157,7 @@ const int Species::getChunkSize() const
 void Species::setChunkSize(int chunk_size)
 {
     this->m_chunk_size = chunk_size;
-
-    cerr<<"!Override! Species::chunkSize = "<<chunk_size<<endl;
+    //cerr<<"!Override! Species::chunkSize = "<<chunk_size<<endl;
 }
 
 void Species::setMutationProb(const float prob)

@@ -30,7 +30,7 @@ bool Breeder::setup(const vector<string>& tokens) {
     } else if (token == "children-size") {
       this->m_children_size = stoi(tokens[++i]);
     } else {
-      cerr << "!Error! Unknown token = " << token << endl;
+      cerr << "- [GA] ! Error: Unknown token = " << token << endl;
       return false;
     }
   }
@@ -38,7 +38,7 @@ bool Breeder::setup(const vector<string>& tokens) {
 }
 
 void Breeder::print(ostream& out) const {
-  out << "breeder tournament-size=" << this->m_tournament_size
+  out << "- [GA] breeder tournament-size=" << this->m_tournament_size
       << " children-size=" << this->m_children_size << endl;
 }
 

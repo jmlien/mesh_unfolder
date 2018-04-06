@@ -135,18 +135,19 @@ namespace masc {
                 }
                 else if (tokens[0] == "unfold")
                 {
+                    //in the form of: method params method params, etc.
                     for (int i = 0; i < tokens.size(); ++i)
                     {
                         const auto& token = tokens[i];
 
                         if (token == "method") {
                             const auto& name = tokens[++i];
-                            Config config;
+                            Config config=org_config;
                             if (name == "GA" || name == "ga")
                             {
+                                // config.early_stop = org_config.early_stop;
+                                // config.seed=org_config.seed;
                                 config.heuristic = CutHeuristic::GA;
-                                config.ga_max_gen = org_config.ga_max_gen;
-                                config.early_stop = org_config.early_stop;
                             }
                             m_unfolder_configs.push_back(config);
                         }
@@ -160,8 +161,8 @@ namespace masc {
                             Config & config = m_unfolder_configs.back();
                             config.seed = atoi(tokens[++i].c_str());
                         }
-                    }
-                }
+                    }//end for token
+                }//end unfold
                 else if (tokens[0] == "paper")
                 {
                     for (int i = 0; i < tokens.size(); ++i)
@@ -332,7 +333,7 @@ namespace masc {
             else
             {
                 spectral_score_clustering(this->m_cluster_size, this->m_score_matrix, this->m_clusters);
-				if (!m_disable_repair) repair_clusters(mesh, this->m_clusters, this->m_score_matrix);
+			        	if (!m_disable_repair) repair_clusters(mesh, this->m_clusters, this->m_score_matrix);
             }
 
             int failed_size = 0;
@@ -408,18 +409,18 @@ namespace masc {
                             ss << mesh->name << "_FAILED_unfolding_submodel_" << subm->t_size << "_" << subm->e_size << "_" << subm->v_size << ".obj";
                             this->dumpObj(ss.str(), subm);
 
-							Config mycfg = m_unfolder->getConfig();
-							mycfg.heuristic = CutHeuristic::STEEPEST_EDGE;
-							mycfg.quite = true;
-							mycfg.max_retries = 1;
-							Unfolder * sub_unfolder = new Unfolder(subm, mycfg);
+              							Config mycfg = m_unfolder->getConfig();
+              							mycfg.heuristic = CutHeuristic::STEEPEST_EDGE;
+              							mycfg.quite = true;
+              							mycfg.max_retries = 1;
+              							Unfolder * sub_unfolder = new Unfolder(subm, mycfg);
                             assert(sub_unfolder);
-							sub_unfolder->buildUnfolding();
+							              sub_unfolder->buildUnfolding();
                             m_failed_unfolded_meshes.push_back(sub_unfolder);
 
-							//subm->destroy();
-							//delete subm;
-							failed_size++;
+              							//subm->destroy();
+              							//delete subm;
+              							failed_size++;
                         }
                     }
                     //done handling failed clusters
@@ -774,11 +775,7 @@ namespace masc {
                 count++;
                 stringstream ss;
                 ss << "-  [ClusterUnfolding] "<<m->name << "_unfolding_" << count << ".svg";
-
-
-
                 m_unfolder->dumpSVG(ss.str(), ExportSVGType::NORMAL);
-
                 cout << "- [ClusterUnfolding] [" << count << "] overlap_count = " << overlap_count << endl;
             }
 
@@ -1217,11 +1214,19 @@ namespace masc {
             //model * m = m_unfolder->getModel();
             objModel data;
 
+            // UV coordinates
+            bool has_uv= m->texture_pts.empty()==false;
+
             //collect all vertices
             unordered_map<uint, uint> vids;
+            unordered_map<uint, uint> uvs;
+
             for (auto fid : cluster.fids)
             {
-                for (short d = 0; d<3; d++) vids[m->tris[fid].v[d]] = 0;
+                for (short d = 0; d<3; d++){
+                  vids[m->tris[fid].v[d]] = 0;
+                  if(has_uv) uvs[m->tris[fid].vt[d]] = 0;
+                }
             }
 
             //get a list of points
@@ -1237,26 +1242,48 @@ namespace masc {
                 vid.second = new_vid++;
             }
 
+
+            //go through the uvs
+            uint new_uv=0;
+            for (auto & id : uvs)
+            {
+              V uv;
+              auto & pos=m->texture_pts[id.first];
+              uv.x = pos[0];
+              uv.y = pos[1];
+              data.textures.push_back(uv);
+              id.second = new_uv++;
+            }
+
             //get a list of faces
             for (auto fid : cluster.fids)
             {
                 polygon poly;
                 for (short d = 0; d < 3; d++){
-                    poly.pts.push_back(vids[m->tris[fid].v[d]]);
+                    auto vid=vids[m->tris[fid].v[d]];
+                    poly.pts.push_back(vid);
+                    if(has_uv){
+                      auto uv=uvs[m->tris[fid].vt[d]];
+                      poly.textures.push_back(uv);
+                    }
                 }
+
                 data.polys.push_back(poly);
             }
 
             data.compute_v_normal();
 
-
             //build mesh
             model * subm = new model();
-            if (subm->build(data) == false)
+            if (subm->build(data, true) == false)
             {
                 cerr << "! Error: Failed to build a model from face cluster" << endl;
                 return NULL;
             }
+
+            // Path of the texture file.
+            subm->texture_path =m->texture_path;
+            subm->material_path=m->material_path;
 
             //register
             auto fid_it = cluster.fids.begin();
@@ -1287,7 +1314,7 @@ namespace masc {
             //normalize_scores(sub_scores);
 
             spectral_score_clustering(K, sub_scores, new_clusters);
-			if (!m_disable_repair) repair_clusters(subm, new_clusters, sub_scores);
+			      if (!m_disable_repair) repair_clusters(subm, new_clusters, sub_scores);
 
             for (auto& cluster : new_clusters)
             {
@@ -1333,7 +1360,6 @@ namespace masc {
 
                 if (cfg.heuristic == CutHeuristic::GA)
                 {
-
                     // using ga to find the best unfolding
                     UnfoldingProblem problem(sub_unfolder);
 
@@ -2230,15 +2256,15 @@ namespace masc {
             const auto cfg = this->m_unfolder->getConfig();
 
             if(cfg.binary_format)
-      {
-        fin.open(filename.c_str(), std::ios::in | std::ios::binary);
-      }else{
-        fin.open(filename.c_str(), std::ios::in);
-      }
+            {
+              fin.open(filename.c_str(), std::ios::in | std::ios::binary);
+            }else{
+              fin.open(filename.c_str(), std::ios::in);
+            }
 
             if (fin.good() == false)
             {
-                cerr << "! - [ClusterUnfolding] Warning: load_score_from_file: Failed to open file " << filename << endl;
+                cerr << "- [ClusterUnfolding] ! Warning: load_score_from_file: Failed to open file " << filename << endl;
                 return false;
             }
 
@@ -2266,19 +2292,17 @@ namespace masc {
             }
 
             this->m_runs += runs;
-            cout<<"loaded runs = "<<runs<<endl;
 
             for (int i = 0; i < t_size; i++)
             {
                 for (int j = i + 1; j < t_size; j++)
                 {
-					if(cfg.binary_format) {
-						fin.read((char*)&buff, 4);
-					} else {
-						fin >> buff;
-					}
-
-                    m_score_matrix[j][i] = m_score_matrix[i][j] = buff;
+        					if(cfg.binary_format) {
+        						fin.read((char*)&buff, 4);
+        					} else {
+        						fin >> buff;
+        					}
+                  m_score_matrix[j][i] = m_score_matrix[i][j] = buff;
                 }//end for j
             }//end for i
 
@@ -2289,20 +2313,7 @@ namespace masc {
         void ClusterUnfolding::dumpObj(const string& path, model * m) const
         {
             cout << "- [ClusterUnfolding] dumping obj to " << path << endl;
-            ofstream out(path);
-
-            vector<Vector3d> vs(m->t_size * 3);
-
-            for (auto fid = 0; fid < m->v_size; ++fid) {
-                const auto& p = m->vertices[fid].p;
-                out << "v " << p[0] << " " << p[1] << " " << p[2] << endl;
-            }
-
-            for (auto fid = 0; fid < m->t_size; ++fid) {
-                out << "f " << m->tris[fid].v[0] + 1 << " " << m->tris[fid].v[1] + 1 << " " << m->tris[fid].v[2] + 1 << "\n";
-            }
-
-            out.close();
+            m->saveObj(path);
         }
     }
 }

@@ -55,6 +55,7 @@ if(WIN32)
 endif()
 
 ########## add subdirectories ############
+#add_subdirectory(app)
 add_subdirectory(GL)
 add_subdirectory(mathtool)
 add_subdirectory(modelgraph)

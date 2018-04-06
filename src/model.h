@@ -176,14 +176,14 @@ struct model {
   }
 
   //build from model file: OBJ/OFF
-  bool build(const std::string& name);
+  bool build(const std::string& name, bool quiet=false);
 
   //build from obj_model
-  bool build(const objModel& obj_model);
+  bool build(const objModel& obj_model, bool quiet=false);
 
   //build from vertices and faces
   bool build(const vector<Vector3d>& vertices,
-      const vector<vector<int>>& faces);
+  const vector<vector<int>>& faces, bool quiet=false);
 
 
 
@@ -266,7 +266,6 @@ struct model {
   bool isBorderVertex(int vid) const;
 
   // Print the model to out in obj format
-  // only v and f, not vt, etc.
   void printObj(ostream& out) const;
 
   // Save the model to an obj file.
@@ -292,11 +291,18 @@ struct model {
   // total surface area
   double surface_area;
 
+  //
+  // textures
+  //
+
   // UV coordinates
   std::vector<Vector2d> texture_pts;
 
   // Path of the texture file.
   std::string texture_path;
+
+  // Path to the material file
+  std::string material_path;
 
   // total edge length
   double total_edge_length;

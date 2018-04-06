@@ -130,6 +130,8 @@ public:
     this->grid_height = 4;
     this->grid_width = 4;
     this->piles = 4;
+    this->output_file = "";
+    this->params_file_path = "";
 
     this->opt_obj = Objective::CUT_LENGTH;
 
@@ -291,6 +293,10 @@ public:
   int piles; // -piles
   int rows { -1 };
   int cols { -1 };
+
+  string output_file;
+
+  string params_file_path;
 
 };
 

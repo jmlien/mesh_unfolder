@@ -102,6 +102,25 @@ private:
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+// LearningEvaluator
+//
+// Learn a fitness function
+///////////////////////////////////////////////////////////////////////////////
+
+class LearningEvaluator: public UnfoldingEvaluator {
+public:
+LearningEvaluator(Unfolder* unfolder, std::map<std::string,std::string> * params) :
+      UnfoldingEvaluator(unfolder) {
+          m_params = params;
+  }
+  virtual ~LearningEvaluator() {
+  }
+  virtual double evaluate(masc::ga::Individual* ind) override;
+protected:
+  std::map<std::string, std::string> *m_params;
+};
+
+///////////////////////////////////////////////////////////////////////////////
 // AreaEvaluator
 //
 // Measure the goodness as area ratio

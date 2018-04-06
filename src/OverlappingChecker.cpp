@@ -31,6 +31,8 @@ namespace unfolding {
 double BruteForceChecker::checkOverlapping(const MESH& mesh,
     const Config& config) {
 
+    //cout<<"BruteForceChecker::checkOverlapping"<<endl;
+
   int count = 0;
   const int F = this->m_unfolder->getModel()->t_size;
 
@@ -49,6 +51,8 @@ double BruteForceChecker::checkOverlapping(const MESH& mesh,
 // ITreeChecker
 ///////////////////////////////////////////////////////////////////////////////
 double ITreeChecker::checkOverlapping(const MESH& mesh, const Config& config) {
+
+    //cout<<"ITreeChecker::checkOverlapping"<<endl;
 
   const int F = this->m_unfolder->getModel()->t_size;
 
@@ -133,6 +137,8 @@ PixelChecker::~PixelChecker() {
 }
 
 double PixelChecker::checkOverlapping(const MESH& mesh, const Config& config) {
+
+//    cout<<"PixelChecker::checkOverlapping"<<endl;
 
   static int id = 0;
 
