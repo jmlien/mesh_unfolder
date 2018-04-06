@@ -89,7 +89,7 @@ bool imageread(const char *filename, Image *image)
             return(false);
         }
     }
-    fgets(str,100,fp);
+    char * tmp=fgets(str,100,fp);
     if(strcmp(str,"P6\n") != 0)
     {
         fprintf(stderr,"imageread: input not in ppm format\n");
@@ -97,7 +97,7 @@ bool imageread(const char *filename, Image *image)
     }
     do
     {
-        fgets(str,100,fp);
+        tmp=fgets(str,100,fp);
         if(str[0] == '#')
         {
             if(image->comv == NULL)
@@ -111,7 +111,7 @@ bool imageread(const char *filename, Image *image)
     } while(str[0] == '#');
     sscanf(str,"%i %i\n",&image->width,&image->height);
     size = image->width * image->height;
-    fgets(str,100,fp);
+    tmp=fgets(str,100,fp);
     sscanf(str,"%i\n",&image->samplesperprimary);
     buf = (uchar *)malloc(sizeof(uchar) * size * 3);
     image->pixels = (uint*)malloc(sizeof(uint) * size);

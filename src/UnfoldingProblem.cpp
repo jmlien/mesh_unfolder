@@ -70,7 +70,7 @@ void UnfoldingProblem::init() {
   return;
 
   // TODO(zxi) one time creators...
-#define 0
+#if 0
   this->m_oneshot_spliiters.push_back(
       std::move(std::unique_ptr<Splitter>(new MinimumPerimeterSplitter())));
   this->m_oneshot_spliiters.push_back(
