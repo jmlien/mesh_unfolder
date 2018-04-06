@@ -1,31 +1,37 @@
-# mesh_unfolder
-Edge unfolding a triangular mesh
+# mesh unfolder
 
-The program unfolder allows you to generate a polyhedra net for a given 3D mesh.
+#### Edge unfolding a triangular mesh developed at George Mason University.
 
 by 
-Jyh-Ming Lien, jmlien@cs.gmu.edu, George Mason University
-Zhonghua Xi, xizhonghua@gmail.com, George Mason University
-Hao Yue, yhao3@gmu.edu, George Mason University
+- [Jyh-Ming Lien](https://cs.gmu.edu/~jmlien), jmlien@cs.gmu.edu, George Mason University
+- [Zhonghua Xi](http://masc.cs.gmu.edu/wiki/ZhonghuaXi), xizhonghua@gmail.com, George Mason University
+- [Hao Yue](http://masc.cs.gmu.edu/wiki/YueHao), yhao3@gmu.edu, George Mason University
 
-Project webpage: http://masc.cs.gmu.edu/wiki/Origami
+#### Project webpage: http://masc.cs.gmu.edu/wiki/Origami
 
+#### The program unfolder allows you to generate a [polyhedra net](https://en.wikipedia.org/wiki/Net_(polyhedron)) for a given 3D mesh.
 
+#### This archive contains:
 
-This archive contains:
 - README.txt
 - mesh unfolder
 - several 3d models in obj or off format
 
-Compile:
-This archive uses CMake(https://cmake.org/) compiling software and works across linux/Mac OS X/Windows platform.
+### Compile ###
+This archive uses CMake (https://cmake.org/) compiling software and works across linux/Mac OS X/Windows platform.
 linux and Mac OS X users can run gen.sh for a quick setup in build/release or build/debug.
 Open GL and glut is required.
 
-Usage:
+### Use mesh unfolder ###
+
+Currently the mesh unfolder can only be used from command line. 
+
+**Usage**
+
 ./unfolder [options] 3d_mesh.obj
 
-Options:
+**Options**
+
 Heuristic Methods
   -h heuristic | use heuristic method
       s        | STEEPEST_EDGE
@@ -73,7 +79,7 @@ Dumping SVG
   -ecx         | extra cut x [default=0.7]
   -ecy         | extra cut x [default=0.1]
 
-Here is a list of keys to control the openGL visualization tool.
+#### Here is a list of keys to control the openGL visualization tool.
 
 Displaying:
   b: show background
