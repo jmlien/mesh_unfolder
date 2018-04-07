@@ -25,6 +25,11 @@ using namespace std;
 #include "UnfoldingState.h"
 #include "util/TextureRenderer2D.h"
 #include "util/SVGWriter.h"
+
+//the type MESH is defined in model.h as:
+//typedef vector<vector<pair<uint, Vector3d> > > MESH
+//representing faces[f_i][k] = <vid, coordinates> (k = 0..2)
+
 using namespace masc;
 using namespace masc::unfolding;
 using namespace masc::unfolding::util;
@@ -80,7 +85,7 @@ struct DualGraphEdge {
 };
 
 /// Crease
-/// fold a face (fid) around an edge(vid1, vid2) by folding_angle rad according to parent face (pdi)
+/// fold a face (fid) around an edge(vid1, vid2) by folding_angle rad according to parent face (pid)
 struct Crease {
   /// vertex id 1
   int vid1;
@@ -97,10 +102,8 @@ struct Crease {
   /// face id
   int fid;
 
-  Crease() :
-      vid1(0), vid2(0), folding_angle(0), fid(0), pid(0) {
-  }
-  ;
+  Crease() : vid1(0), vid2(0), folding_angle(0), fid(0), pid(0) { }
+
   Crease(int vid1, int vid2, int fid, int pid, float folding_angle) :
       vid1(vid1), vid2(vid2), fid(fid), pid(pid), folding_angle(folding_angle) {
   }
@@ -427,7 +430,7 @@ private:
 
   /// check whether an extended triangle from face fid, overlap with existing net
   bool isOverlapWithNet(const Vector3d& p1, const Vector3d& p2,
-      const Vector3d& p3, const int fid);
+                        const Vector3d& p3, const int fid);
 
   /// check whether current unfolding has overlap or not using interval tree
   /// return number of overlapping pairs

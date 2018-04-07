@@ -2259,7 +2259,7 @@ bool Unfolder::checkCollision() {
 void Unfolder::rebuildModel() {
 
   if (m_config.no_rebuild) {
-    cerr << "!Warning! NO rebuild, skipped! [Unfolder::rebuildModel]" << endl;
+    cerr << "! Warning! NO rebuild, skipped! [Unfolder::rebuildModel]" << endl;
     return;
   }
 
@@ -2296,7 +2296,7 @@ void Unfolder::rebuildModel() {
   vector<pair<int, int>> cut_dual_edges(dual_edges.begin(), dual_edges.end());
 
   // Step 2.3: cut the mesh
-  mesh_cutter::CutMesh(&m_net, cut_dual_edges);
+  mesh_cutter::CutMesh(&this->m_net, cut_dual_edges);
 
   // Step 3: update the coordinates for each face in the new model
   this->sync(&this->m_net);
@@ -2304,6 +2304,8 @@ void Unfolder::rebuildModel() {
 //  cerr << " done in " << endl;
 }
 
+/// Sync correct coordinates with an unfolding.
+/// Will modify model* unfolding.
 void Unfolder::sync(model* unfolding) const {
   for (int i = 0; i < m_m->t_size; ++i) {
     const triangle& f = unfolding->tris[i];
