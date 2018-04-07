@@ -27,6 +27,7 @@ using namespace std;
 #include "mathtool/tri-tri.h"
 #include "util/Statistics.h"
 #include "util/ConvexHull2D.h"
+#include "util/DisjointSets.h"
 #include "MeshCutter.h"
 using namespace masc;
 using namespace masc::util;
@@ -1396,16 +1397,15 @@ void Unfolder::buildMST(GRAPH& g)
   this->m_parents.clear();
   this->m_selected_edges.clear();
   this->m_fold_edges.clear();
-
   this->m_ordered_face_list.clear();
   this->m_ordered_crease_list.clear();
 
   m_parents.resize(m_m->t_size);
 
-  auto in_the_tree = set<uint>();
+  //auto in_the_tree = set<uint>();
+  DisjointSets DS(m_m->t_size); //Disjoint set
 
   // base_face is in the tree
-  in_the_tree.insert(m_base_face_id);
   m_ordered_face_list.push_back(m_base_face_id);
   m_parents[m_base_face_id] = -1;
 
@@ -1416,28 +1416,20 @@ void Unfolder::buildMST(GRAPH& g)
 
   float total_weight = 0;
 
-//  uint boundary_edges = 0;
-//
-//  for (const edge& e : m_m->edges)
-//    if (e.type == 'b')
-//      ++boundary_edges;
-
   // total t_size - 1 (- boundary_edges) edges in the tree
-  for (uint k = 1; k < m_m->t_size; k++) {
+  for (uint k = 1; k < m_m->t_size; k++)
+  {
     //auto e = q.top();
     DualGraphEdge e;
 
     // find the maximum weight edge with one node in the tree, but another not
-    //while (true)
     while (q.empty() == false) {
       e = q.top();
       q.pop();
 
       // both node are already in the tree
       // not valid, remove that edge
-      if (in_the_tree.count(e.fid1) && in_the_tree.count(e.fid2)) {
-        continue;
-      }
+      if(DS.find(e.fid1)==DS.find(e.fid2)) continue;
 
       break;
     }
@@ -1445,71 +1437,39 @@ void Unfolder::buildMST(GRAPH& g)
     if (e.fid1 < 0 || e.fid2 < 0) {
       break;
     }
-//    cout << "e = " << e.fid1 << "," << e.fid2 << " w = " << e.weight
-//        << " selected" << endl;
 
     // add directed edge to selected edge set
     this->m_selected_edges.insert(make_pair(e.fid1, e.fid2));
 
     {
-      // find eid of shared edges
-      set<int> eids1;
-      set<int> eids2;
-
-      for (int i = 0; i < 3; ++i) {
-        eids1.insert(this->m_m->tris[e.fid1].e[i]);
-        eids2.insert(this->m_m->tris[e.fid2].e[i]);
-      }
-
-      set<int> shared_eids;
-      std::set_intersection(eids1.begin(), eids1.end(), eids2.begin(),
-          eids2.end(), std::inserter(shared_eids, shared_eids.begin()));
-
-      assert(shared_eids.size() == 1);
-
-      int eid = *shared_eids.begin();
-
+      int eid = this->m_m->getEdgeIdByFids(e.fid1, e.fid2);
+      assert(eid>=0);
       this->m_ordered_crease_list.push_back(eid);
-
       this->m_fold_edges.insert(eid);
     }
 
     total_weight += e.weight;
 
-    if (in_the_tree.count(e.fid1) + in_the_tree.count(e.fid2) == 2) {
-      cerr << "!!!Warning!!!! both faces are already in the tree" << endl;
-    }
-
-    auto s = in_the_tree.count(e.fid1) ? e.fid1 : e.fid2;
+    int tree_set=DS.find(m_base_face_id);
+    auto s = (DS.find(e.fid1)==tree_set) ? e.fid1 : e.fid2;
     auto t = s == e.fid1 ? e.fid2 : e.fid1;
-
-    m_parents[t] = s;
-
-    in_the_tree.insert(t);
+    tree_set = DS.unite(DS.find(s),DS.find(t));
+    this->m_parents[t] = s;
     this->m_ordered_face_list.push_back(t);
 
     // add new edges
-    for (const auto& de : g[t]) {
-
+    for (const auto& de : g[t])
+    {
       // if the other face is already in the tree
-      if (in_the_tree.count(de.first))
-        continue;
-
+      if (DS.find(de.first)==tree_set) continue;
       q.push(DualGraphEdge(t, de.first, de.second));
     }
-  }
-
-  //if (this->m_ordered_face_list.size() != this->m_m->t_size)
-  //{
-  //	cout << "this->m_ordered_face_list.size()=" << this->m_ordered_face_list.size() << " this->m_m->t_size=" << this->m_m->t_size << endl;
-  //}
-  //assert(this->m_ordered_face_list.size() == this->m_m->t_size);
+  }//end for
 
   if (!m_config.quite) {
     cout << " total weight = " << total_weight << endl;
     cout << " fold edges = " << m_fold_edges.size() << endl;
-    cout << " done in " << (float) (clock() - start) / CLOCKS_PER_SEC << " s"
-        << endl;
+    cout << " done in " << (float) (clock() - start) / CLOCKS_PER_SEC << " s"   << endl;
   }
 }
 

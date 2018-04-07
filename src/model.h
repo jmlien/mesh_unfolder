@@ -86,6 +86,7 @@ struct triangle {
     }
     return -1;
   }
+
 };
 
 //a vertex of the model
@@ -128,8 +129,20 @@ struct edge {
     parent_id=UINT_MAX;
   }
 
+  //given an incident face id (ofid)
+  //return the other incident face id
+  //only one id is returned if this is a non-manifold edge
+  uint otherf(uint ofid)
+  {
+    for(uint id : fid)
+    {
+      if(id!=ofid) return id;
+    }
+    return -1; //border edge
+  }
+
   uint vid[2];
-  vector<uint> fid;
+  vector<uint> fid; //incident face ids
 
   Vector3d v;       //parallel vector
   //Vector3d in_n[2]; //inface normals
@@ -184,9 +197,6 @@ struct model {
   //build from vertices and faces
   bool build(const vector<Vector3d>& vertices,
   const vector<vector<int>>& faces, bool quiet=false);
-
-
-
 
   //rotate points
   void rotate(const Matrix2x2& m);

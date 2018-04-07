@@ -822,7 +822,8 @@ bool model::getHalfRing(int eid, int fid, int vid, vector<int>* eids) const {
   return true;
 }
 
-int model::getEdgeIdByFids(int fid1, int fid2) const {
+int model::getEdgeIdByFids(int fid1, int fid2) const
+{
   const triangle& f1 = this->tris[fid1];
   const triangle& f2 = this->tris[fid2];
   for (int eid : f1.e) {
