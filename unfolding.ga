@@ -4,7 +4,7 @@
 #####################################
 
 problem max-generation=1500 pop-size=400
-species min-gene=0.0 max-gene=1.0 mutation-prob=0.05 mutation-type=gaussian mutation-stddev=0.3 crossover-prob=0.4 crossover-type=uniform
+species min-gene=0.0 max-gene=1.0 mutation-prob=0.1 mutation-type=gaussian mutation-stddev=0.3 crossover-prob=0.4 crossover-type=uniform
 breeder tournament-size=7 children-size=50
 
 # specify what heuristic methods will be used to create individuals

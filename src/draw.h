@@ -154,12 +154,12 @@ inline void DisaplayUnfold(Unfolder& unfolder) {
   const auto& se = unfolder.getSelectedEdges();
   for (const auto f : unfolded) {
     const auto& t = m->tris[fid];
-
     const auto& e1 = m->edges[t.e[1]];
     const auto& e2 = m->edges[t.e[2]];
 
     for (auto k = 0; k < 3; k++) {
-      const auto& e = m->edges[t.e[k]];
+      int eid=t.e[k];
+      const auto& e = m->edges[eid];
 
       glColor3f(0.0f, 0.0f, 0.0f);
 
@@ -176,8 +176,8 @@ inline void DisaplayUnfold(Unfolder& unfolder) {
       }
 
       if (showWeights) {
-        if (se.count(std::make_pair((int) e.fid[0], (int) e.fid[1]))
-            || se.count(std::make_pair((int) e.fid[1], (int) e.fid[0]))) {
+
+        if (se[eid]) {
           // do nothing
         } else {
           glColor3f(1.0f, 0, 0);
@@ -193,13 +193,17 @@ inline void DisaplayUnfold(Unfolder& unfolder) {
   glEnd();
 
   if (showSpanningTree) {
+    const auto& se = unfolder.getSelectedEdges();
     glColor3f(0.0f, 0.7f, 0.7f);
     glBegin(GL_LINES);
-    const auto& se = unfolder.getSelectedEdges();
-    for (auto& e : se) {
-      const auto fid1 = e.first;
-      const auto fid2 = e.second;
 
+    for(int eid=0;eid<m->e_size;eid++)
+    {
+      if(!se[eid]) continue;
+      const edge& e=m->edges[eid];
+      assert(e.fid.size()==2);
+      const auto fid1=e.fid.front();
+      const auto fid2=e.fid.back();
       const auto c1 = (unfolded[fid1][0].second + unfolded[fid1][1].second
           + unfolded[fid1][2].second) / 3;
       const auto c2 = (unfolded[fid2][0].second + unfolded[fid2][1].second
@@ -207,7 +211,20 @@ inline void DisaplayUnfold(Unfolder& unfolder) {
 
       glVertex3dv(c1.get());
       glVertex3dv(c2.get());
-    }
+    }//end for i
+
+    //for (auto& e : se) {
+    //   const auto fid1 = e.first;
+    //   const auto fid2 = e.second;
+    //
+    //   const auto c1 = (unfolded[fid1][0].second + unfolded[fid1][1].second
+    //       + unfolded[fid1][2].second) / 3;
+    //   const auto c2 = (unfolded[fid2][0].second + unfolded[fid2][1].second
+    //       + unfolded[fid2][2].second) / 3;
+    //
+    //   glVertex3dv(c1.get());
+    //   glVertex3dv(c2.get());
+    // }
     glEnd();
   }
 

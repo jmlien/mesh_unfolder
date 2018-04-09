@@ -242,7 +242,7 @@ public:
     return this->m_parents[fid];
   }
 
-  const set<pair<int, int>>& getSelectedEdges() const {
+  const vector<bool>& getSelectedEdges() const {
     return this->m_selected_edges;
   }
 
@@ -364,7 +364,7 @@ private:
 
   /// rebuild the tree rooted at base_face from selected edges
   /// return average path length
-  void rebuildTree(int base_face, set<pair<int, int>> selected_edges);
+  double rebuildTree(int base_face, const vector<bool>& selected_edges);
 
   /// unfold the model by linear interpolation
   /// p: percentage of folding
@@ -556,7 +556,8 @@ private:
 
   /// connected edges in the unfolding
   /// <fid1, fid2>
-  set<pair<int,int>> m_selected_edges;
+  //set<pair<int,int>> m_selected_edges;
+	vector<bool> m_selected_edges; //true if this edge is a crease
 
   // eid -> true/false
   set<int> m_fold_edges;

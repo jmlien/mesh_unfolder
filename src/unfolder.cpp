@@ -103,7 +103,7 @@ void Unfolder::measureModel() {
 }
 
 void Unfolder::buildUnfolding() {
-  cout << "- unfolding..." << endl;
+  cerr << "- unfolding..." << endl;
 
   auto start = clock();
 
@@ -124,8 +124,8 @@ void Unfolder::buildUnfolding() {
   for (int i = 0; i < max_tries; i++) {
     auto weights = this->m_spliiter->assignWeights(this->m_m, this->m_config);
     auto count = this->buildFromWeights(weights);
-    if (!m_config.quite)
-      cerr << "- iter = " << i << ", total overlaps = " << count << endl;
+
+    cerr << "- iter = " << i << ", total overlaps = " << count << "\r"<<flush;
 
     if (count < all_overlaps.Min()) {
       best_weights = weights;
@@ -143,7 +143,7 @@ void Unfolder::buildUnfolding() {
       auto hull = this->buildConvexHull2D();
       double hull_area = masc::util::ConvexHull2DArea(hull);
       cerr << "- total cut length = " << cut_length << " hull area = "
-          << hull_area << endl;
+           << hull_area << endl;
 
       if (cut_length < all_cut_lengths.Min()) {
         best_weights = weights;
@@ -155,10 +155,8 @@ void Unfolder::buildUnfolding() {
       if (this->m_config.early_stop)
         break;
     }
-
-    if (!m_config.quite)
-      cout << "--------------------------------------------" << endl;
-  }
+  }//end for i
+  cerr<<endl;//done
 
   if (!best_weights.empty()) {
     this->buildFromWeights(best_weights);
@@ -1395,7 +1393,8 @@ void Unfolder::buildMST(GRAPH& g)
   }
 
   this->m_parents.clear();
-  this->m_selected_edges.clear();
+  //this->m_selected_edges.clear();
+  this->m_selected_edges=vector<bool>(m_m->e_size,false);
   this->m_fold_edges.clear();
   this->m_ordered_face_list.clear();
   this->m_ordered_crease_list.clear();
@@ -1439,13 +1438,14 @@ void Unfolder::buildMST(GRAPH& g)
     }
 
     // add directed edge to selected edge set
-    this->m_selected_edges.insert(make_pair(e.fid1, e.fid2));
+    //this->m_selected_edges.insert(make_pair(e.fid1, e.fid2));
 
     {
       int eid = this->m_m->getEdgeIdByFids(e.fid1, e.fid2);
-      assert(eid>=0);
+      assert(eid>=0 && eid<this->m_m->e_size);
       this->m_ordered_crease_list.push_back(eid);
       this->m_fold_edges.insert(eid);
+      this->m_selected_edges[eid]=true;
     }
 
     total_weight += e.weight;
@@ -1473,58 +1473,91 @@ void Unfolder::buildMST(GRAPH& g)
   }
 }
 
-void Unfolder::rebuildTree(int base_face, set<pair<int, int>> selected_edges) {
+double Unfolder::rebuildTree(int base_face, const vector<bool>& selected_edges) {
 
+  //reset
   this->m_parents.clear();
   this->m_ordered_face_list.clear();
-
   this->m_parents.resize(m_m->t_size);
 
-  auto in_the_tree = set<uint>();
-  in_the_tree.insert(base_face);
+  // auto in_the_tree = set<uint>();
+  // in_the_tree.insert(base_face);
+
+  //init
   this->m_ordered_face_list.push_back(base_face);
   this->m_parents[base_face] = -1;
   this->m_m->tris[base_face].path_len = 0;
   this->m_max_path_len = -1;
   this->m_avg_path_len = -1;
 
+  list<int> open;
+  open.push_back(base_face);
   auto sum_path_len = 0.0;
 
+  //flooding
+  while(!open.empty())
+  {
+    int fid=open.front();
+    open.pop_front();
+    triangle & tri=this->m_m->tris[fid];
+
+    for(short i=0;i<3;i++)
+    {
+      int eid=tri.e[i];
+      if(!m_selected_edges[eid]) continue; //not a crease
+      int ofid=this->m_m->edges[eid].otherf(fid);
+      if(this->m_parents[fid]==ofid) continue; //ofid is parent
+
+      //update info of ofid
+      this->m_parents[ofid] = fid;
+      this->m_ordered_face_list.push_back(ofid);
+      auto path_len=this->m_m->tris[ofid].path_len = this->m_m->tris[fid].path_len + 1;
+      this->m_max_path_len = max(this->m_max_path_len, path_len);
+      sum_path_len += path_len;
+
+      //add to open to propagate
+      open.push_back(ofid);
+    }//end for i
+
+  }//end while
+
   //TODO: JML, this is brute force....should be improved
-  while (selected_edges.size()) {
-    set<pair<int, int>> to_remove;
-    for (const auto& e : selected_edges) {
-      if (!in_the_tree.count(e.first) && !in_the_tree.count(e.second))
-        continue;
-
-      int pf = in_the_tree.count(e.first) ? e.first : e.second;
-      int f = pf == e.first ? e.second : e.first;
-
-      in_the_tree.insert(f);
-      this->m_parents[f] = pf;
-      this->m_ordered_face_list.push_back(f);
-
-      this->m_m->tris[f].path_len = this->m_m->tris[pf].path_len + 1;
-
-      this->m_max_path_len = max(this->m_max_path_len,
-          this->m_m->tris[f].path_len);
-
-      sum_path_len += this->m_m->tris[f].path_len;
-
-      to_remove.insert(e);
-    }
-
-    for (const auto& e : to_remove) {
-      selected_edges.erase(e);
-    }
-  }
+  // while (selected_edges.size()) {
+  //   set<pair<int, int>> to_remove;
+  //   for (const auto& e : selected_edges) {
+  //     if (!in_the_tree.count(e.first) && !in_the_tree.count(e.second))
+  //       continue;
+  //
+  //     int pf = in_the_tree.count(e.first) ? e.first : e.second;
+  //     int f = pf == e.first ? e.second : e.first;
+  //
+  //     in_the_tree.insert(f);
+  //     this->m_parents[f] = pf;
+  //     this->m_ordered_face_list.push_back(f);
+  //
+  //     this->m_m->tris[f].path_len = this->m_m->tris[pf].path_len + 1;
+  //
+  //     this->m_max_path_len = max(this->m_max_path_len,
+  //         this->m_m->tris[f].path_len);
+  //
+  //     sum_path_len += this->m_m->tris[f].path_len;
+  //
+  //     to_remove.insert(e);
+  //   }
+  //
+  //   for (const auto& e : to_remove) {
+  //     selected_edges.erase(e);
+  //   }
+  // }
 
   assert(this->m_ordered_face_list.size() == this->m_m->t_size);
 
   this->m_avg_path_len = sum_path_len / this->m_m->t_size;
 
   cout << " - Base face = " << base_face << " avg_path_length = "
-      << m_avg_path_len << "\r" << flush;
+       << m_avg_path_len << "\r" << flush;
+
+  return this->m_avg_path_len;
 }
 
 void Unfolder::findBestBaseFace() {
@@ -1534,7 +1567,8 @@ void Unfolder::findBestBaseFace() {
   int best_base_face = -1;
   double min_avg_path_len = FLT_MAX;
 
-  for (int i = 0; i < m_m->t_size; ++i) {
+  for (int i = 0; i < m_m->t_size; ++i)
+  {
     this->rebuildTree(i, this->m_selected_edges);
     if (m_avg_path_len < min_avg_path_len) {
       min_avg_path_len = m_avg_path_len;
@@ -1549,7 +1583,7 @@ void Unfolder::findBestBaseFace() {
   this->rebuildModel();
 
   cerr << "- Best base face = " << best_base_face << " avg_path_length = "
-      << min_avg_path_len << endl;
+       << min_avg_path_len << endl;
 
 }
 
@@ -1563,7 +1597,7 @@ void Unfolder::initUnfold() {
         << "/" << m_m->e_size << " faces = " << m_m->t_size << endl;// number of total facet
   }
 
-// use random base face
+  // use random base face
   if (this->m_config.random_baseface)
     m_base_face_id = (int) (mathtool::drand48() * m_m->t_size);
   else if (this->m_config.baseface >= 0) {
@@ -1581,7 +1615,7 @@ void Unfolder::initUnfold() {
 
   this->m_org.clear();
 
-// copy vertex coordinates
+  // copy vertex coordinates
   for (auto i = 0; i < this->m_m->t_size; i++) {
     const auto& f = this->m_m->tris[i];
     const auto& vs = this->m_m->vertices;
@@ -1975,14 +2009,14 @@ uint Unfolder::checkOverlap_itree() {
   return checker.checkOverlapping(this->m_unfolded, this->m_config);
 }
 
-bool Unfolder::checkOverlap(uint i, uint j) {
+bool Unfolder::checkOverlap(uint i, uint j)
+{
   bool intersected = false;
   double pp[2] = { 0.0, 0.0 };
 
   // two faces shared an edge in the unfolding (not in the original mesh).
-  if (this->m_selected_edges.count(make_pair(i, j))
-      || this->m_selected_edges.count(make_pair(j, i)))
-    return intersected;
+  int eid=this->m_m->getEdgeIdByFids(i,j);
+  if(eid>=0 && eid<this->m_m->e_size) if (this->m_selected_edges[eid]) return false;
 
   for (int p = 0; p < 3 && (!intersected); p++) {
 
@@ -2023,13 +2057,16 @@ bool Unfolder::checkOverlap(uint i, uint j) {
   return intersected;
 }
 
-bool Unfolder::checkOverlapNew(uint i, uint j) {
+bool Unfolder::checkOverlapNew(uint i, uint j)
+{
   bool intersected = false;
-
   // two faces shared an edge in the unfolding (not in the original mesh).
-  if (this->m_selected_edges.count(make_pair(i, j))
-      || this->m_selected_edges.count(make_pair(j, i)))
-    return intersected;
+  int eid=this->m_m->getEdgeIdByFids(i,j);
+  if(eid>=0 && eid<this->m_m->e_size) if (this->m_selected_edges[eid]) return false;
+
+  // if (this->m_selected_edges.count(make_pair(i, j))
+  //     || this->m_selected_edges.count(make_pair(j, i)))
+  //   return intersected;
 
   double p1[2] = { m_unfolded[i][0].second[0], m_unfolded[i][0].second[2] };
   double q1[2] = { m_unfolded[i][1].second[0], m_unfolded[i][1].second[2] };
@@ -2053,6 +2090,7 @@ bool Unfolder::checkOverlapNew(uint i, uint j) {
   return intersected;
 }
 
+//TODO: this is too slow
 int Unfolder::checkOverlaps() {
 
   ++this->m_check_overlapping_calls;
@@ -2087,7 +2125,8 @@ int Unfolder::checkOverlaps() {
   if (!m_config.use_rapid) {
 
     bool checked = false;
-    if (F > 300) {
+    if (F > 300) //if the number of faces is large, use more advanced data structure
+    {
       count = checkOverlap_itree();
       if (count != UINT_MAX)
         checked = true; //good
@@ -2096,15 +2135,14 @@ int Unfolder::checkOverlaps() {
     if (checked == false) {
 
       // Build AABB for the unfolding
-      vector<Box2d> boxes(F);
-
-      for (int i = 0; i < F; ++i) {
-        vector<Vector2d> p(3);
-        for (int j = 0; j < 3; ++j)
-          p[j] = {m_unfolded[i][j].second[0], m_unfolded[i][j].second[2]};
-
-        boxes[i].setFromPoints(p);
-      }
+      // vector<Box2d> boxes(F);
+      //
+      // for (int i = 0; i < F; ++i) {
+      //   Vector2d p[3];
+      //   for (short j = 0; j < 3; ++j)
+      //     p[j] = {m_unfolded[i][j].second[0], m_unfolded[i][j].second[2]};
+      //   boxes[i].setFromPoints(p);
+      // }
 
       for (int i = 0; i < F; i++) {
         for (int j = i + 1; j < F; j++) {
@@ -2190,14 +2228,13 @@ bool Unfolder::checkCollision() {
     this->m_m->tris[i].overlapped = false;
 
   for (int i = 0; i < F; i++) {
-    for (int j = 0; j < F; j++) {
+    for (int j = 0; j < F; j++) { //TODO: j=i+1?
       if (i == j)
         continue;
 
       // two faces shared an edge in the unfolding (not in the original mesh).
-      if (this->m_selected_edges.count(make_pair(i, j))
-          || this->m_selected_edges.count(make_pair(j, i)))
-        continue;
+      int eid=this->m_m->getEdgeIdByFids(i,j);
+      if(eid>=0 && eid<this->m_m->e_size) if (this->m_selected_edges[eid]) continue;
 
       bool intersected = this->hasIntersection(i, j);
 
@@ -2206,8 +2243,8 @@ bool Unfolder::checkCollision() {
         this->m_m->tris[i].overlapped = true;
         this->m_m->tris[j].overlapped = true;
       }
-    }
-  }
+    }//end for j
+  }//end for i
 
   if (!m_config.quite)
     cout << " count = " << count << " done in "
@@ -2239,20 +2276,22 @@ void Unfolder::rebuildModel() {
 
   // Step 2.1: collect all dual edges  {fid1, fid2}.
   set<pair<int, int>> dual_edges;
-
+  uint eid=-1;
   for (const edge& e : m_m->edges) {
-    if (e.type == 'b')
-      continue;
+    eid++;
+    if (e.type == 'b') continue;
+    if (m_selected_edges[eid]) continue; //crease edge, ignore
     dual_edges.insert(make_pair((int) e.fid[0], (int) e.fid[1]));
   }
 
   // Step 2.2: remove all fold dual edges.
-  for (const auto& p : m_selected_edges) {
-    dual_edges.erase(make_pair(p.first, p.second));
-    dual_edges.erase(make_pair(p.second, p.first));
-  }
+  // for (const auto& p : m_selected_edges) {
+  //   dual_edges.erase(make_pair(p.first, p.second));
+  //   dual_edges.erase(make_pair(p.second, p.first));
+  // }
 
   // cut edge {fid1, fid2}
+  // ?? not sure why this is needed
   vector<pair<int, int>> cut_dual_edges(dual_edges.begin(), dual_edges.end());
 
   // Step 2.3: cut the mesh
@@ -2498,18 +2537,22 @@ bool Unfolder::isOverlapWithNet(const Vector3d& p1, const Vector3d& p2,
 }
 
 bool Unfolder::isCutEdge(int fid1, int fid2) const {
-  return !this->m_selected_edges.count( { fid1, fid2 })
-      && !this->m_selected_edges.count( { fid2, fid1 });
+  uint eid = this->m_m->getEdgeIdByFids(fid1, fid2);
+  return isCutEdge(eid);
+  //return !this->m_selected_edges[eid];
+  //return !this->m_selected_edges.count( { fid1, fid2 })
+  //    && !this->m_selected_edges.count( { fid2, fid1 });
 }
 
 bool Unfolder::isCutEdge(int eid) const {
-  const edge edge = this->m_m->edges[eid];
+
+  const edge & e = this->m_m->edges[eid];
 
   // A border edge can not be a cut edge.
-  if (edge.type == 'b')
+  if (e.type == 'b')
     return false;
 
-  return this->isCutEdge((int) edge.fid[0], (int) edge.fid[1]);
+  return !this->m_selected_edges[eid];
 }
 
 vector<float> Unfolder::optimizeUnfolding() {

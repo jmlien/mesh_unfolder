@@ -424,7 +424,9 @@ bool readfromfiles()
 
     if (config.weights_filename.length() > 0) {
       // build from weights;
+      cout<<"build from weights 1"<<endl;
       unfolder->buildFromWeights(config.weights_filename);
+      cout<<"build from weights 2"<<endl;
       unfolder->rebuildModel();
       //optimize more from the current weights
       if (config.heuristic == CutHeuristic::GA){ run_ga_unfolder(unfolder); }
@@ -522,17 +524,17 @@ bool readfromfiles()
       }
     }
 
-    unfolder->rebuildModel();
-    unfolder->unfoldTo(0.0);
-
     // In clustering mode, each cluster should be added to *unfolders*, skip here.
-    if (config.heuristic != CutHeuristic::CLUSTERING) {
+    if (config.heuristic != CutHeuristic::CLUSTERING)
+    {
+      unfolder->rebuildModel();
+      unfolder->unfoldTo(0.0);
       unfolders.push_back(unfolder);
     }
 
     cout << string(40, '-') << endl;
 
-  }                //end for (const auto& filename)
+  } //end for (const auto& filename)
 
   auto time_cost = (clock() - start) * 1.0 / CLOCKS_PER_SEC;
 

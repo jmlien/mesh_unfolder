@@ -244,7 +244,7 @@ void Problem::generatePopulation()
     if (ind->getFitness() > this->m_best_ind.getFitness()) {
       this->m_best_ind = *ind;
       cout << "- [GA]  [" << i << "/" << m_population_size << "] best so far = "
-           << m_best_ind.getFitness() << "\r";
+           << m_best_ind.getFitness() << "\r"<<flush;
     }
   }
 

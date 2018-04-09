@@ -833,6 +833,7 @@ int model::getEdgeIdByFids(int fid1, int fid2) const
       return eid;
     }
   }
+
   for (int eid : f2.e) {
     const edge& e = this->edges[eid];
     if (std::find(e.fid.begin(), e.fid.end(), (unsigned int) fid1)

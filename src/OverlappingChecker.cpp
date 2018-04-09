@@ -105,12 +105,12 @@ double ITreeChecker::checkOverlapping(const MESH& mesh, const Config& config) {
     for (uint j : intersections) {
       if (i > j)
         continue; //this will be checked by (j,i) pair
-      if (this->m_unfolder->checkOverlap(i, j)) {
+      if (this->m_unfolder->checkOverlapNew(i, j)) {
         count++;
       }
     }
   }
-
+  
   //free mem
   for (auto rect : rects)
     delete (rect);
