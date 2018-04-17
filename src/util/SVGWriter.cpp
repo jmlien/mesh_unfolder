@@ -196,8 +196,9 @@ void SVGWriter::Save(const string& output_path, ExportSVGType type) {
 ///////////////////////////////////////////////////////////////////////////
 void SVGWriter::WriteHeader(ostream& out) {
   out << "<?xml version=\"1.0\"?>" << endl;
-  out << "<svg width=\"" << width_pixel_ << "\" height=\"" << height_pixel_
-      << "\"" << " version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" "
+  out << "<svg width=\"" << width_pixel_ << "mm\" height=\"" << height_pixel_
+      << "mm\"" << " viewBox=\"0 0 "<<width_pixel_<<" "<< height_pixel_<<"\""
+      <<" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" "
       << "xmlns:xlink=\"http://www.w3.org/1999/xlink\">" << endl;
 }
 

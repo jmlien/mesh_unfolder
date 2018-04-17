@@ -76,7 +76,7 @@ public:
 
     this->disable_gui = false;
 
-    this->scale = 200.0;
+    this->scale = 1.0;
 
     this->svg_dump_labels = true;
 

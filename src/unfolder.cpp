@@ -40,7 +40,8 @@ const float EdgeWeight::KeepEdge = 0.0;
 const float EdgeWeight::CutEdge = 1.0;
 #endif
 
-Unfolder::Unfolder(model* m, const Config& config) {
+Unfolder::Unfolder(model* m, const Config& config)
+{
   this->m_m = m;
   this->m_config = config;
   this->m_base_face_id = UINT_MAX;
@@ -53,6 +54,9 @@ Unfolder::Unfolder(model* m, const Config& config) {
   this->m_top_vertex_id = INT_MIN;
   this->m_spliiter = nullptr;
   this->m_cd = new RAPID_CD(this);
+  assert(this->m_cd);
+  this->m_selected_edges=new bool[this->m_m->e_size];
+  assert(this->m_selected_edges);
 
   this->m_max_path_len = -1;
   this->m_avg_path_len = -1;
@@ -79,6 +83,7 @@ Unfolder::Unfolder(model* m, const Config& config) {
 
 Unfolder::~Unfolder() {
   //delete m_m;//don't delete this, this is from the client
+  delete [] m_selected_edges;
   delete m_cd;
 }
 
@@ -97,7 +102,7 @@ void Unfolder::measureModel() {
     if (this->m_m->edges[i].type == 'r')
       ++count;
 
-  cout << " - concave edges = " << count << " ( "
+  cout << " - concave edges = " << count<<"/"<<this->m_m->e_size << " ( "
       << (count * 100.0 / this->m_m->e_size) << " % )" << endl;
 
 }
@@ -632,8 +637,9 @@ void Unfolder::findMostCompactState() {
   this->unfoldTo(best_cfg);
 }
 
-void Unfolder::shrink() {
-  for (auto i = 0; i < this->m_m->t_size; ++i) {
+void Unfolder::shrink()
+{
+  for (int i = 0; i < this->m_m->t_size; ++i) {
     auto& p0 = this->m_unfolded[i][0].second;
     auto& p1 = this->m_unfolded[i][1].second;
     auto& p2 = this->m_unfolded[i][2].second;
@@ -987,378 +993,378 @@ void Unfolder::dumpOri(const string& path) const {
 
   out.close();
 }
-
-/// dump unfolded results to svg file to the given path
-void Unfolder::dumpSVGOld(const string& path, const int type) {
-  ofstream out(path);
-
-  auto min_x = DBL_MAX;
-  auto max_x = DBL_MIN;
-  auto min_y = DBL_MAX;
-  auto max_y = DBL_MIN;
-
-  for (const auto& v : this->m_vs) {
-    min_x = min(min_x, v[0]);
-    max_x = max(max_x, v[0]);
-    min_y = min(min_y, v[2]);
-    max_y = max(max_y, v[2]);
-  }
-
-  const auto scale_factor = m_config.scale;
-
-  const auto width = (max_x - min_x);
-  const auto height = (max_y - min_y);
-  const auto aspect = width / height;
-
-  const int width_pixel = width;
-  const int height_pixel = width_pixel / aspect;
-
-  const auto dashed_length = width_pixel * 0.01;
-
-  const auto stroke_width = 1.0 * max(width_pixel, height_pixel) / 800;
-
-  const auto font_size = min(width_pixel, height_pixel) * 0.02
-      * m_config.label_font_scale;
-
-  const string dashed_line = "stroke-dasharray:" + std::to_string(dashed_length)
-      + ", " + std::to_string(dashed_length) + ";";
-
-  const string boundary_style = "stroke:rgb(0,0,0);stroke-width:"
-      + std::to_string(stroke_width * 2) + ";fill:white";
-  const string normal_style = "stroke:rgb(128,128,128);stroke-width:"
-      + std::to_string(stroke_width);
-  const string mountain_style = "stroke:rgb(255,0,0);stroke-width:"
-      + std::to_string(stroke_width) + ";"; // + dashed_line;
-
-  const string valley_style = "stroke:rgb(0,0,255);stroke-width:"
-      + std::to_string(stroke_width) + ";";
-
-  const string tree_style = "stroke:rgb(0,128,0);stroke-width:"
-      + std::to_string(stroke_width) + ";";
-
-  const string crease_style = "stroke:rgb(128,128,128);stroke-width:"
-      + std::to_string(stroke_width) + ";" + dashed_line;
-
-  const string cut_style = "stroke:rgb(0,0,0);stroke-width:"
-      + std::to_string(stroke_width) + ";" + dashed_line;
-  //
-//      stroke-dasharray:"
-//      + std::to_string(dashed_length) + ", " + std::to_string(dashed_length)
-//      + ", " + std::to_string(dashed_length / 5) + ", "
-//      + std::to_string(dashed_length) + ";";
-
-  out << "<?xml version=\"1.0\"?>" << endl;
-  out << "<svg width=\"" << width_pixel << "\" height=\"" << height_pixel
-      << "\"" << " version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" "
-      << "xmlns:xlink=\"http://www.w3.org/1999/xlink\">" << endl;
-
-  out << "<defs>" << endl;
-  out << "<style type=\"text/css\"><![CDATA[" << endl;
-
-  out << ".m {" << mountain_style << "}" << endl;
-  out << ".v {" << valley_style << "}" << endl;
-  out << ".b {" << boundary_style << "}" << endl;
-  out << ".n {" << normal_style << "}" << endl;
-  out << ".t {" << tree_style << "}" << endl;
-  out << ".c {" << crease_style << "}" << endl;
-
-  out << "]]></style>" << endl;
-  out << "</defs>" << endl;
-
-  // dump cuts, in two colors
-  if (type & 1) {
-
-    // draw textures first
-    if (this->m_texture_renderer != nullptr && type == 1) {
-
-      this->m_texture_renderer->SetCanvasSize(width_pixel, height_pixel);
-
-      // For each face
-      for (int fid = 0; fid < m_m->t_size; ++fid) {
-        const auto& face = this->m_unfolded[fid];
-
-        const Vector3d& p0_3d = (face[0].second - m_net_min_v) * m_config.scale;
-        const Vector3d& p1_3d = (face[1].second - m_net_min_v) * m_config.scale;
-        const Vector3d& p2_3d = (face[2].second - m_net_min_v) * m_config.scale;
-
-        // Coordinates on SVG canvas
-        const Vector2d p0(p0_3d[0], p0_3d[2]);
-        const Vector2d p1(p1_3d[0], p1_3d[2]);
-        const Vector2d p2(p2_3d[0], p2_3d[2]);
-
-        const triangle& t = this->m_m->tris[fid];
-
-        // UV coordinates
-        const Vector2d& uv0 = this->m_m->texture_pts[t.vt[0]];
-        const Vector2d& uv1 = this->m_m->texture_pts[t.vt[1]];
-        const Vector2d& uv2 = this->m_m->texture_pts[t.vt[2]];
-
-        cerr << "p = " << p0 << "," << p1 << " " << p2 << std::endl;
-        cerr << "uv = " << uv0 << "," << uv1 << " " << uv2 << std::endl;
-
-        this->m_texture_renderer->Render(p0, p1, p2, uv0, uv1, uv2);
-
-      }
-
-      std::string img_url;
-      this->m_texture_renderer->ExportToPngBase64(&img_url);
-      out << "<image xlink:href=\"" << img_url << "\" width=\"" << width_pixel
-          << "px\" height=\"" << height_pixel << "px\" />\n";
-    }
-
-    // draw boundary in black color
-    out << "<path fill=\"none\" style=\"stroke:black;stroke-width:"
-        << std::to_string(stroke_width * 2) << ";\"";
-    out << " d=\"";
-
-    set<pair<int, int>> draw_edges;
-    set<set<int>> processed_edges;
-
-    for (auto& face : this->m_fs) {
-      for (auto j = 1; j <= 3; ++j) {
-        const auto vid0 = face[j - 1];
-        const auto vid1 = face[j % 3];
-        const auto& p0 = this->m_vs[vid0];
-        const auto& p1 = this->m_vs[vid1];
-
-        bool boundary = true;
-
-        auto edge = make_pair(vid0, vid1);
-        auto edge2 = make_pair(vid1, vid0);
-
-        if (!this->m_crease_lines.count(edge)
-            && !this->m_crease_lines.count(edge2)) {
-
-          out << " M " << p0[0] << " " << p0[2];
-          out << " L " << p1[0] << " " << p1[2];
-        }
-      }
-
-      // draw extra cuts for tabs
-      if (type & 8) {
-
-        const int vids[3] = { face[0], face[1], face[2] };
-
-        const Vector3d p[3] = { m_vs[vids[0]], m_vs[vids[1]], m_vs[vids[2]] };
-        const Vector3d e[3] = { p[1] - p[0], p[2] - p[1], p[0] - p[2] };
-
-        const auto shortest_e = std::min(std::min(e[0].norm(), e[1].norm()),
-            e[2].norm());
-
-        const auto x = shortest_e * m_config.extra_cuts_x;
-        const auto y = shortest_e * m_config.extra_cuts_y;
-
-        for (int i = 0; i < 3; ++i) {
-          int vidc = vids[i];
-          int vidn = vids[(i + 1) % 3];
-          set<int> edge = { vidc, vidn };
-
-          if (processed_edges.count(edge))
-            continue;
-          processed_edges.insert(edge);
-
-          const auto ep = e[(i + 2) % 3];
-          const auto ec = e[i];
-          const auto en = e[(i + 1) % 3];
-
-          const auto tp = acos(en.normalize() * ep.normalize());
-          const auto tc = acos(ec.normalize() * ep.normalize());
-          const auto tn = acos(ec.normalize() * en.normalize());
-
-          const auto h = y * sin(tn);
-          const auto b = y * sin(tp) / sin(tn);
-          const auto a = ec.norm() - b - x;
-          const auto z = y * sin(tn) / sin(tc);
-
-          const auto pbx = p[(i + 1) % 3] - (ec.normalize()) * (b + x);
-          const auto pbp = pbx + en.normalize() * y;
-          const auto pz = p[i] - ep.normalize() * z;
-
-          out << " M " << pbx[0] << " " << pbx[2];
-          out << " L " << pbp[0] << " " << pbp[2];
-          out << " L " << pz[0] << " " << pz[2];
-          out << " L " << p[i][0] << " " << p[i][2];
-          out << " L " << pbx[0] << " " << pbx[2];
-
-          auto e01 = make_pair(face[i], face[(i + 1) % 3]);
-          auto e10 = make_pair(face[(i + 1) % 3], face[i]);
-
-          // check whether is boundary edge
-          if (!this->m_crease_lines.count(e01)
-              && !this->m_crease_lines.count(e10))
-            continue;
-
-          // draw mirrow part
-          // height dir: perpendicular to current edge, ignore y...
-          const auto h_dir = Vector3d(-ec[2], 0, ec[0]);
-          const auto pbpp = pbp + h_dir.normalize() * 2 * h;
-          const auto pbzp = pz + h_dir.normalize() * 2 * h;
-
-          out << " L " << pbpp[0] << " " << pbpp[2];
-          out << " L " << pbzp[0] << " " << pbzp[2];
-          out << " L " << p[i][0] << " " << p[i][2];
-
-        }
-      } // end of if (type & 8) extra cuts
-    }
-
-    out << "\" />" << endl;
-
-    {
-      // draw creases in dotted grey as a single path
-      out << "<path fill=\"none\" class=\"c\" d=\"";
-
-      for (auto& c : this->m_cs) {
-        const auto& p1 = this->m_vs[c.vid1];
-        const auto& p2 = this->m_vs[c.vid2];
-
-        // skip flat edges
-        if (c.folding_angle == 0)
-          continue;
-
-        out << " M " << p1[0] << " " << p1[2];
-        out << " L " << p2[0] << " " << p2[2];
-      }
-
-      out << "\" />" << endl;
-    } // end of creases
-
-    // draw spanning tree
-    if (type & 4) {
-      for (auto& c : this->m_cs) {
-        int fid = c.fid;
-        int pid = c.pid;
-        if (pid == -1)
-          continue;
-        const auto& f1 = this->m_fs[fid];
-        const auto& f2 = this->m_fs[pid];
-        Vector3d c1;
-        Vector3d c2;
-        for (int i = 0; i < 3; ++i) {
-          c1 += this->m_vs[f1[i]];
-          c2 += this->m_vs[f2[i]];
-        }
-        c1 = c1 * (1.0 / 3);
-        c2 = c2 * (1.0 / 3);
-
-        char buf[1024];
-
-        sprintf(buf,
-            "<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" class=\"t\" />",
-            c1[0], c1[2], c2[0], c2[2]);
-        out << buf << endl;
-      }
-    } // end of spanning tree
-
-  } // end of type 1
-
-  // display mode
-  // 1. draw crease and boundary in their own colors
-  // 2. draw cuts with different thickness
-  if (type == 2) {
-    set<pair<int, int>> draw_edges;
-
-    const double min_line_width = 0.2;
-    const double max_line_width = 3.0;
-
-    char buf[1024];
-
-    // draw crease lines in color
-    for (auto& face : this->m_fs) {
-      for (auto j = 1; j <= 3; ++j) {
-        int vid1 = face[j - 1];
-        int vid2 = face[j % 3];
-        const auto p0 = this->m_vs[vid1];
-        const auto p1 = this->m_vs[vid2];
-
-//        const auto edge = std::make_pair(min(vid1, vid2), max(vid1,vid2));
-        const auto edge1 = std::make_pair(vid1, vid2);
-        const auto edge2 = std::make_pair(vid2, vid1);
-
-        int org_eid = this->m_vemap[edge1];
-        const auto& org_e = this->m_m->edges[org_eid];
-
-        string class_name = "b";
-        bool boundary = true;
-
-        // already drawn
-        if (draw_edges.count(edge1) || draw_edges.count(edge2))
-          continue;
-
-        // const Crease& crease = this->m_cs[m_crease_lines.at(edge1)];
-        if (org_e.folding_angle > 1e-3)
-          class_name = "m";
-        else if (org_e.folding_angle < -1e-3)
-          class_name = "v";
-        else
-          class_name = "n";
-
-        const double line_width = stroke_width
-            * (min_line_width
-                + fabs(org_e.folding_angle / PI)
-                    * (max_line_width - min_line_width));
-
-        const string style = "stroke-width:" + std::to_string(line_width) + ";";
-
-        boundary = false;
-
-        draw_edges.insert(edge1);
-        draw_edges.insert(edge2);
-
-        sprintf(buf,
-            "<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" class=\"%s\" style=\"%s\" />",
-            p0[0], p0[2], p1[0], p1[2], class_name.c_str(), style.c_str());
-        out << buf << endl;
-      }
-    }
-
-    // draw labels
-    if (this->m_config.svg_dump_labels) {
-      char text_buf[1024];
-
-      for (auto i = 0; i < this->m_m->e_size; ++i) {
-        const auto& new_edges = this->m_eemap.at(i);
-
-        // boundary edges
-        if (new_edges.size() == 1u)
-          continue;
-
-        for (const auto& new_edge : new_edges) {
-          if (this->m_crease_lines.count(new_edge))
-            continue;
-
-          const auto p0 = m_vs[new_edge.first];
-          const auto p1 = m_vs[new_edge.second];
-
-          const auto vec = (p1 - p0).normalize();
-          const auto angle = RadToDeg(atan2(vec[2], vec[0])); // angle from x axis in degree
-
-          const auto edge_length = (p1 - p0).norm();
-          int label_size = std::to_string(i).size();
-          double label_length = label_size * font_size * 0.4;
-          double pp = min(label_length / 2 / edge_length, 0.5);
-          const auto center = p0 + (p1 - p0) * (0.5 - pp);
-
-          sprintf(text_buf,
-              "<text x=\"%f\" y=\"%f\" transform=\"rotate(%f %f %f)\" fill=\"darkgreen\" font-weight=\"bold\" font-size=\"%f\">%d</text>",
-              center[0], center[2],   // x, y
-              angle, center[0], center[2], font_size, i);
-
-          out << text_buf << endl;
-
-        } // end for
-
-      } // end for
-
-    } // end if
-  }
-
-  out << "</svg>" << endl;
-
-  out.close();
-
-  cout << "- dumped svg to " << path << endl;
-}
+//
+// /// dump unfolded results to svg file to the given path
+// void Unfolder::dumpSVGOld(const string& path, const int type) {
+//   ofstream out(path);
+//
+//   auto min_x = DBL_MAX;
+//   auto max_x = DBL_MIN;
+//   auto min_y = DBL_MAX;
+//   auto max_y = DBL_MIN;
+//
+//   for (const auto& v : this->m_vs) {
+//     min_x = min(min_x, v[0]);
+//     max_x = max(max_x, v[0]);
+//     min_y = min(min_y, v[2]);
+//     max_y = max(max_y, v[2]);
+//   }
+//
+//   const auto scale_factor = m_config.scale;
+//
+//   const auto width = (max_x - min_x);
+//   const auto height = (max_y - min_y);
+//   const auto aspect = width / height;
+//
+//   const int width_pixel = width;
+//   const int height_pixel = width_pixel / aspect;
+//
+//   const auto dashed_length = width_pixel * 0.01;
+//
+//   const auto stroke_width = 1.0 * max(width_pixel, height_pixel) / 800;
+//
+//   const auto font_size = min(width_pixel, height_pixel) * 0.02
+//       * m_config.label_font_scale;
+//
+//   const string dashed_line = "stroke-dasharray:" + std::to_string(dashed_length)
+//       + ", " + std::to_string(dashed_length) + ";";
+//
+//   const string boundary_style = "stroke:rgb(0,0,0);stroke-width:"
+//       + std::to_string(stroke_width * 2) + ";fill:white";
+//   const string normal_style = "stroke:rgb(128,128,128);stroke-width:"
+//       + std::to_string(stroke_width);
+//   const string mountain_style = "stroke:rgb(255,0,0);stroke-width:"
+//       + std::to_string(stroke_width) + ";"; // + dashed_line;
+//
+//   const string valley_style = "stroke:rgb(0,0,255);stroke-width:"
+//       + std::to_string(stroke_width) + ";";
+//
+//   const string tree_style = "stroke:rgb(0,128,0);stroke-width:"
+//       + std::to_string(stroke_width) + ";";
+//
+//   const string crease_style = "stroke:rgb(128,128,128);stroke-width:"
+//       + std::to_string(stroke_width) + ";" + dashed_line;
+//
+//   const string cut_style = "stroke:rgb(0,0,0);stroke-width:"
+//       + std::to_string(stroke_width) + ";" + dashed_line;
+//   //
+// //      stroke-dasharray:"
+// //      + std::to_string(dashed_length) + ", " + std::to_string(dashed_length)
+// //      + ", " + std::to_string(dashed_length / 5) + ", "
+// //      + std::to_string(dashed_length) + ";";
+//
+//   out << "<?xml version=\"1.0\"?>" << endl;
+//   out << "<svg width=\"" << width_pixel << "\" height=\"" << height_pixel
+//       << "\"" << " version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" "
+//       << "xmlns:xlink=\"http://www.w3.org/1999/xlink\">" << endl;
+//
+//   out << "<defs>" << endl;
+//   out << "<style type=\"text/css\"><![CDATA[" << endl;
+//
+//   out << ".m {" << mountain_style << "}" << endl;
+//   out << ".v {" << valley_style << "}" << endl;
+//   out << ".b {" << boundary_style << "}" << endl;
+//   out << ".n {" << normal_style << "}" << endl;
+//   out << ".t {" << tree_style << "}" << endl;
+//   out << ".c {" << crease_style << "}" << endl;
+//
+//   out << "]]></style>" << endl;
+//   out << "</defs>" << endl;
+//
+//   // dump cuts, in two colors
+//   if (type & 1) {
+//
+//     // draw textures first
+//     if (this->m_texture_renderer != nullptr && type == 1) {
+//
+//       this->m_texture_renderer->SetCanvasSize(width_pixel, height_pixel);
+//
+//       // For each face
+//       for (int fid = 0; fid < m_m->t_size; ++fid) {
+//         const auto& face = this->m_unfolded[fid];
+//
+//         const Vector3d& p0_3d = (face[0].second - m_net_min_v) * m_config.scale;
+//         const Vector3d& p1_3d = (face[1].second - m_net_min_v) * m_config.scale;
+//         const Vector3d& p2_3d = (face[2].second - m_net_min_v) * m_config.scale;
+//
+//         // Coordinates on SVG canvas
+//         const Vector2d p0(p0_3d[0], p0_3d[2]);
+//         const Vector2d p1(p1_3d[0], p1_3d[2]);
+//         const Vector2d p2(p2_3d[0], p2_3d[2]);
+//
+//         const triangle& t = this->m_m->tris[fid];
+//
+//         // UV coordinates
+//         const Vector2d& uv0 = this->m_m->texture_pts[t.vt[0]];
+//         const Vector2d& uv1 = this->m_m->texture_pts[t.vt[1]];
+//         const Vector2d& uv2 = this->m_m->texture_pts[t.vt[2]];
+//
+//         cerr << "p = " << p0 << "," << p1 << " " << p2 << std::endl;
+//         cerr << "uv = " << uv0 << "," << uv1 << " " << uv2 << std::endl;
+//
+//         this->m_texture_renderer->Render(p0, p1, p2, uv0, uv1, uv2);
+//
+//       }
+//
+//       std::string img_url;
+//       this->m_texture_renderer->ExportToPngBase64(&img_url);
+//       out << "<image xlink:href=\"" << img_url << "\" width=\"" << width_pixel
+//           << "px\" height=\"" << height_pixel << "px\" />\n";
+//     }
+//
+//     // draw boundary in black color
+//     out << "<path fill=\"none\" style=\"stroke:black;stroke-width:"
+//         << std::to_string(stroke_width * 2) << ";\"";
+//     out << " d=\"";
+//
+//     set<pair<int, int>> draw_edges;
+//     set<set<int>> processed_edges;
+//
+//     for (auto& face : this->m_fs) {
+//       for (auto j = 1; j <= 3; ++j) {
+//         const auto vid0 = face[j - 1];
+//         const auto vid1 = face[j % 3];
+//         const auto& p0 = this->m_vs[vid0];
+//         const auto& p1 = this->m_vs[vid1];
+//
+//         bool boundary = true;
+//
+//         auto edge = make_pair(vid0, vid1);
+//         auto edge2 = make_pair(vid1, vid0);
+//
+//         if (!this->m_crease_lines.count(edge)
+//             && !this->m_crease_lines.count(edge2)) {
+//
+//           out << " M " << p0[0] << " " << p0[2];
+//           out << " L " << p1[0] << " " << p1[2];
+//         }
+//       }
+//
+//       // draw extra cuts for tabs
+//       if (type & 8) {
+//
+//         const int vids[3] = { face[0], face[1], face[2] };
+//
+//         const Vector3d p[3] = { m_vs[vids[0]], m_vs[vids[1]], m_vs[vids[2]] };
+//         const Vector3d e[3] = { p[1] - p[0], p[2] - p[1], p[0] - p[2] };
+//
+//         const auto shortest_e = std::min(std::min(e[0].norm(), e[1].norm()),
+//             e[2].norm());
+//
+//         const auto x = shortest_e * m_config.extra_cuts_x;
+//         const auto y = shortest_e * m_config.extra_cuts_y;
+//
+//         for (int i = 0; i < 3; ++i) {
+//           int vidc = vids[i];
+//           int vidn = vids[(i + 1) % 3];
+//           set<int> edge = { vidc, vidn };
+//
+//           if (processed_edges.count(edge))
+//             continue;
+//           processed_edges.insert(edge);
+//
+//           const auto ep = e[(i + 2) % 3];
+//           const auto ec = e[i];
+//           const auto en = e[(i + 1) % 3];
+//
+//           const auto tp = acos(en.normalize() * ep.normalize());
+//           const auto tc = acos(ec.normalize() * ep.normalize());
+//           const auto tn = acos(ec.normalize() * en.normalize());
+//
+//           const auto h = y * sin(tn);
+//           const auto b = y * sin(tp) / sin(tn);
+//           const auto a = ec.norm() - b - x;
+//           const auto z = y * sin(tn) / sin(tc);
+//
+//           const auto pbx = p[(i + 1) % 3] - (ec.normalize()) * (b + x);
+//           const auto pbp = pbx + en.normalize() * y;
+//           const auto pz = p[i] - ep.normalize() * z;
+//
+//           out << " M " << pbx[0] << " " << pbx[2];
+//           out << " L " << pbp[0] << " " << pbp[2];
+//           out << " L " << pz[0] << " " << pz[2];
+//           out << " L " << p[i][0] << " " << p[i][2];
+//           out << " L " << pbx[0] << " " << pbx[2];
+//
+//           auto e01 = make_pair(face[i], face[(i + 1) % 3]);
+//           auto e10 = make_pair(face[(i + 1) % 3], face[i]);
+//
+//           // check whether is boundary edge
+//           if (!this->m_crease_lines.count(e01)
+//               && !this->m_crease_lines.count(e10))
+//             continue;
+//
+//           // draw mirrow part
+//           // height dir: perpendicular to current edge, ignore y...
+//           const auto h_dir = Vector3d(-ec[2], 0, ec[0]);
+//           const auto pbpp = pbp + h_dir.normalize() * 2 * h;
+//           const auto pbzp = pz + h_dir.normalize() * 2 * h;
+//
+//           out << " L " << pbpp[0] << " " << pbpp[2];
+//           out << " L " << pbzp[0] << " " << pbzp[2];
+//           out << " L " << p[i][0] << " " << p[i][2];
+//
+//         }
+//       } // end of if (type & 8) extra cuts
+//     }
+//
+//     out << "\" />" << endl;
+//
+//     {
+//       // draw creases in dotted grey as a single path
+//       out << "<path fill=\"none\" class=\"c\" d=\"";
+//
+//       for (auto& c : this->m_cs) {
+//         const auto& p1 = this->m_vs[c.vid1];
+//         const auto& p2 = this->m_vs[c.vid2];
+//
+//         // skip flat edges
+//         if (c.folding_angle == 0)
+//           continue;
+//
+//         out << " M " << p1[0] << " " << p1[2];
+//         out << " L " << p2[0] << " " << p2[2];
+//       }
+//
+//       out << "\" />" << endl;
+//     } // end of creases
+//
+//     // draw spanning tree
+//     if (type & 4) {
+//       for (auto& c : this->m_cs) {
+//         int fid = c.fid;
+//         int pid = c.pid;
+//         if (pid == -1)
+//           continue;
+//         const auto& f1 = this->m_fs[fid];
+//         const auto& f2 = this->m_fs[pid];
+//         Vector3d c1;
+//         Vector3d c2;
+//         for (int i = 0; i < 3; ++i) {
+//           c1 += this->m_vs[f1[i]];
+//           c2 += this->m_vs[f2[i]];
+//         }
+//         c1 = c1 * (1.0 / 3);
+//         c2 = c2 * (1.0 / 3);
+//
+//         char buf[1024];
+//
+//         sprintf(buf,
+//             "<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" class=\"t\" />",
+//             c1[0], c1[2], c2[0], c2[2]);
+//         out << buf << endl;
+//       }
+//     } // end of spanning tree
+//
+//   } // end of type 1
+//
+//   // display mode
+//   // 1. draw crease and boundary in their own colors
+//   // 2. draw cuts with different thickness
+//   if (type == 2) {
+//     set<pair<int, int>> draw_edges;
+//
+//     const double min_line_width = 0.2;
+//     const double max_line_width = 3.0;
+//
+//     char buf[1024];
+//
+//     // draw crease lines in color
+//     for (auto& face : this->m_fs) {
+//       for (auto j = 1; j <= 3; ++j) {
+//         int vid1 = face[j - 1];
+//         int vid2 = face[j % 3];
+//         const auto p0 = this->m_vs[vid1];
+//         const auto p1 = this->m_vs[vid2];
+//
+// //        const auto edge = std::make_pair(min(vid1, vid2), max(vid1,vid2));
+//         const auto edge1 = std::make_pair(vid1, vid2);
+//         const auto edge2 = std::make_pair(vid2, vid1);
+//
+//         int org_eid = this->m_vemap[edge1];
+//         const auto& org_e = this->m_m->edges[org_eid];
+//
+//         string class_name = "b";
+//         bool boundary = true;
+//
+//         // already drawn
+//         if (draw_edges.count(edge1) || draw_edges.count(edge2))
+//           continue;
+//
+//         // const Crease& crease = this->m_cs[m_crease_lines.at(edge1)];
+//         if (org_e.folding_angle > 1e-3)
+//           class_name = "m";
+//         else if (org_e.folding_angle < -1e-3)
+//           class_name = "v";
+//         else
+//           class_name = "n";
+//
+//         const double line_width = stroke_width
+//             * (min_line_width
+//                 + fabs(org_e.folding_angle / PI)
+//                     * (max_line_width - min_line_width));
+//
+//         const string style = "stroke-width:" + std::to_string(line_width) + ";";
+//
+//         boundary = false;
+//
+//         draw_edges.insert(edge1);
+//         draw_edges.insert(edge2);
+//
+//         sprintf(buf,
+//             "<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" class=\"%s\" style=\"%s\" />",
+//             p0[0], p0[2], p1[0], p1[2], class_name.c_str(), style.c_str());
+//         out << buf << endl;
+//       }
+//     }
+//
+//     // draw labels
+//     if (this->m_config.svg_dump_labels) {
+//       char text_buf[1024];
+//
+//       for (auto i = 0; i < this->m_m->e_size; ++i) {
+//         const auto& new_edges = this->m_eemap.at(i);
+//
+//         // boundary edges
+//         if (new_edges.size() == 1u)
+//           continue;
+//
+//         for (const auto& new_edge : new_edges) {
+//           if (this->m_crease_lines.count(new_edge))
+//             continue;
+//
+//           const auto p0 = m_vs[new_edge.first];
+//           const auto p1 = m_vs[new_edge.second];
+//
+//           const auto vec = (p1 - p0).normalize();
+//           const auto angle = RadToDeg(atan2(vec[2], vec[0])); // angle from x axis in degree
+//
+//           const auto edge_length = (p1 - p0).norm();
+//           int label_size = std::to_string(i).size();
+//           double label_length = label_size * font_size * 0.4;
+//           double pp = min(label_length / 2 / edge_length, 0.5);
+//           const auto center = p0 + (p1 - p0) * (0.5 - pp);
+//
+//           sprintf(text_buf,
+//               "<text x=\"%f\" y=\"%f\" transform=\"rotate(%f %f %f)\" fill=\"darkgreen\" font-weight=\"bold\" font-size=\"%f\">%d</text>",
+//               center[0], center[2],   // x, y
+//               angle, center[0], center[2], font_size, i);
+//
+//           out << text_buf << endl;
+//
+//         } // end for
+//
+//       } // end for
+//
+//     } // end if
+//   }
+//
+//   out << "</svg>" << endl;
+//
+//   out.close();
+//
+//   cout << "- dumped svg to " << path << endl;
+// }
 
 // =============================================================
 // private
@@ -1394,7 +1400,8 @@ void Unfolder::buildMST(GRAPH& g)
 
   this->m_parents.clear();
   //this->m_selected_edges.clear();
-  this->m_selected_edges=vector<bool>(m_m->e_size,false);
+  //this->m_selected_edges=vector<bool>(m_m->e_size,false);
+  memset(this->m_selected_edges, false, sizeof(bool)*m_m->e_size);
   this->m_fold_edges.clear();
   this->m_ordered_face_list.clear();
   this->m_ordered_crease_list.clear();
@@ -1473,7 +1480,7 @@ void Unfolder::buildMST(GRAPH& g)
   }
 }
 
-double Unfolder::rebuildTree(int base_face, const vector<bool>& selected_edges) {
+double Unfolder::rebuildTree(int base_face, const bool * selected_edges) {
 
   //reset
   this->m_parents.clear();
@@ -2228,9 +2235,9 @@ bool Unfolder::checkCollision() {
     this->m_m->tris[i].overlapped = false;
 
   for (int i = 0; i < F; i++) {
-    for (int j = 0; j < F; j++) { //TODO: j=i+1?
-      if (i == j)
-        continue;
+    for (int j = i+1; j < F; j++) {
+      // if (i == j)
+      //   continue;
 
       // two faces shared an edge in the unfolding (not in the original mesh).
       int eid=this->m_m->getEdgeIdByFids(i,j);
