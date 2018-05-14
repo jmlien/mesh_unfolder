@@ -35,6 +35,7 @@ enum class CutHeuristic {
 enum class Objective {
   CUT_LENGTH,         // total cut length
   HULL_AREA,          // hull area
+  BOX_SIDE,           // max side length of bounding box
   POLYGON_FIT,        // polygon fit
 };
 

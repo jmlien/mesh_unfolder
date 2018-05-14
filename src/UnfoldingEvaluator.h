@@ -86,6 +86,13 @@ public:
   double evaluate(Unfolder* unfolder) override;
 };
 
+// estimate max side length of bounding box
+class BoxSideEvaluator : public NetEvaluator {
+public:
+  virtual ~BoxSideEvaluator(){}
+  double evaluate(Unfolder* unfolder) override;
+};
+
 //evaluate based how similar the net bounrady is to a list of pre-define polygons
 class PolygonFitEvaluator : public NetEvaluator {
 public:

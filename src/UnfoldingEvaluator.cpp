@@ -306,6 +306,25 @@ double HullAreaEvaluator::evaluate(Unfolder* unfolder) {
   return 1.0/unfolder->getHullArea();
 }
 
+// estimate max side length of bounding box
+double BoxSideEvaluator::evaluate(Unfolder* unfolder) {
+
+  float min_x=FLT_MAX, max_x=-FLT_MAX, min_y=FLT_MAX, max_y=-FLT_MAX;
+
+  const MESH& unfolded_mesh=unfolder->getUnfolded();
+  for (const auto& f : unfolded_mesh) {
+    for (int i = 0; i < 3; ++i)
+    {
+      const Vector3d& pos=f[i].second;
+      if(pos[0]<min_x) min_x=pos[0];
+      if(pos[0]>max_x) max_x=pos[0];
+      if(pos[2]<min_y) min_y=pos[2];
+      if(pos[2]>max_y) max_y=pos[2];
+    }
+  }
+
+  return unfolder->getTotalCutLength()/max((max_x-min_x), (max_y-min_y));
+}
 
 //-----------------------------------------------------------------------------
 //

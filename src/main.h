@@ -118,7 +118,9 @@ bool parseArg(int argc, char ** argv) {
         config.opt_obj = Objective::CUT_LENGTH;
       } else if (obj == "hull_area") {
         config.opt_obj = Objective::HULL_AREA;
-      } else if (obj == "polygon") {
+      } else if (obj == "box") {
+        config.opt_obj = Objective::BOX_SIDE;
+      }  else if (obj == "polygon") {
         config.opt_obj = Objective::POLYGON_FIT;
       } else {
         cerr << "!Error! Unknown objective type = " << obj << endl;
@@ -315,6 +317,7 @@ void printUsage(char * name) {
   cerr << "  -objective # | specify the objective for optimization\n";
   cerr << "     hull_area (minimize convex hull area)\n";
   cerr << "     cut_length (minimize cut edge length)\n\n";
+  cerr << "     box (minimize the longest side of bounding box)\n\n";
   cerr << "     polygon (caging polygon, see -polygon)\n\n";
 
   cerr <<"Polygon Net Optimization\n";

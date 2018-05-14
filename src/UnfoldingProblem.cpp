@@ -39,6 +39,9 @@ UnfoldingProblem::UnfoldingProblem(Unfolder* unfolder) {
   case Objective::HULL_AREA:
     this->m_net_evaluator.reset(new HullAreaEvaluator);
     break;
+  case Objective::BOX_SIDE:
+      this->m_net_evaluator.reset(new BoxSideEvaluator);
+      break;
   case Objective::POLYGON_FIT:
     this->m_net_evaluator.reset(new PolygonFitEvaluator(unfolder->getConfig().stencil_filename));
     break;
