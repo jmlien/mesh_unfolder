@@ -561,7 +561,8 @@ void dumpModelsToWrl() {
   writer.save(filename, models);
 }
 
-void dumpUnfolding(bool flattened_only = false) {
+void dumpUnfolding(bool flattened_only = false)
+{
   for (auto u : unfolders) {
     if (flattened_only && !u->isFlattened())
       continue;
@@ -587,12 +588,14 @@ void dumpUnfolding(bool flattened_only = false) {
           if (u->getConfig().weights_filename.length() == 0 || u->getConfig().heuristic == CutHeuristic::GA)
               u->dumpWeights(prefix + ".weights");
 
-          u->dumpSVG(prefix + "_net.svg", ExportSVGType::NET);
-          u->dumpSVG(prefix + "_cut.svg", ExportSVGType::CUT);
+          u->dumpSVG(prefix + "_net.svg",  ExportSVGType::NET);
+          u->dumpSVG(prefix + "_cut.svg",  ExportSVGType::CUT);
           u->dumpSVG(prefix + "_tree.svg", ExportSVGType::TREE);
-          u->dumpSVG(prefix + "_texture.svg", ExportSVGType::TEXTURE);
+
+          if(!u->getConfig().texture_path.empty())
+            u->dumpSVG(prefix + "_texture.svg", ExportSVGType::TEXTURE);
     }
-  }
+  }//end for (auto u : unfolders)
 }
 
 void dumpWeights() {

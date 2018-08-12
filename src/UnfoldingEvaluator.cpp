@@ -29,8 +29,7 @@ namespace unfolding {
 double OverlappingEvaluator::evaluate(masc::ga::Individual* ind) {
 
   // Build from weights, check global overlaps
-  const int global_overlaps = this->m_unfolder->buildFromWeights(
-      ind->getGenome());
+  const int global_overlaps = this->m_unfolder->buildFromWeights(ind->getGenome());
 
   // Check local overlaps
   // local overlaps is not very useful when the net is large.

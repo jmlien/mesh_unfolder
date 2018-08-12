@@ -365,16 +365,16 @@ void BruteForceSplitter::init(int edges) {
 
 void BruteForceSplitter::assignWeightsImpl(model *m, vector<float>& weights,
     const Config& config) {
-  if (!this->m_inited) {
-    this->init(m->e_size);
-    this->m_inited = true;
-  } else {
-    if (!std::next_permutation(this->m_weights.begin(),
-        this->m_weights.end())) {
-      cerr << "All possible permutation tried!" << endl;
-      assert(false);
+    if (!this->m_inited) {
+      this->init(m->e_size);
+      this->m_inited = true;
+    } else {
+      if (!std::next_permutation(this->m_weights.begin(),
+          this->m_weights.end())) {
+        cerr << "All possible permutation tried!" << endl;
+        assert(false);
+      }
     }
-  }
 }
 
 } /* namespace masc */

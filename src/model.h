@@ -198,6 +198,9 @@ struct model {
   bool build(const vector<Vector3d>& vertices,
   const vector<vector<int>>& faces, bool quiet=false);
 
+  //create a submodel from a list of face ids
+  model * create_submodel(const list<uint> & fids);
+
   //rotate points
   void rotate(const Matrix2x2& m);
   void rotate(const Matrix3x3& M);

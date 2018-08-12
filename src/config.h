@@ -39,6 +39,16 @@ enum class Objective {
   POLYGON_FIT,        // polygon fit
 };
 
+//net stitching and cutting
+enum class NetSurgery
+{
+  NO_SURGERY,             //disalbe net surgery
+  SET_COVER_SURGERY,      //split overlapping part of the nete into disjoint parts
+  TOPOLOGICAL_SURGERY,    //extension of set cover that merges split nets using GA
+  SUBDIVID_SURGERY,       //subdivid a triangle and rearrange sub-triangles to avoid overlap
+  CAGING_SURGERY          //ensure the net is contained in a polygonal container
+};
+
 struct Config {
 public:
   Config() {
@@ -83,11 +93,15 @@ public:
 
     this->svg_edge_hints = true;
 
+    this->svg_add_tabs = false;
+
+    this->svg_valley_chamfer = false;
+
+    this->svg_valley_chamfer_width_ratio = 1.0;
+
     this->no_tick = false;
 
     this->use_rapid = false;
-
-    this->add_tabs = false;
 
     this->find_best_base_face = true;
 
@@ -135,7 +149,7 @@ public:
     this->params_file_path = "";
 
     this->opt_obj = Objective::CUT_LENGTH;
-
+    this->surgery_method = NetSurgery::NO_SURGERY;
   }
 
   CutHeuristic heuristic;
@@ -236,6 +250,14 @@ public:
   // only dumpped into cut svg file
   bool svg_edge_hints;
 
+  // whether to add tabs or not
+  bool svg_add_tabs;
+
+  // whether to add chamfer or not
+  // if so, the width of the chamger is related to folding angle
+  bool svg_valley_chamfer;
+  float svg_valley_chamfer_width_ratio;
+
   // label font scale
   double label_font_scale;
 
@@ -244,9 +266,6 @@ public:
 
   // whether to use rapid for overlapping/collision detection
   bool use_rapid;
-
-  // whether to add tabs or not
-  bool add_tabs;
 
   // whether to find the best base face
   bool find_best_base_face;
@@ -283,8 +302,12 @@ public:
   // for optimization
   Objective opt_obj;
 
+  // for net surgery
+  NetSurgery surgery_method;
+
   // test only
   bool test_mode;
+
   // training mode, no dump svgs only
   bool training_mode;
 

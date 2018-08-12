@@ -1,6 +1,10 @@
 /*
  * Splitter.h
  *
+ * A list of classes that computed edge weights for unfolding
+ * Will be better if this is called a "Weighter" as these classes does not split
+ * anything....
+ *
  *  Created on: Feb 6, 2015
  *      Author: zhonghua
  */

@@ -1251,3 +1251,87 @@ void model::saveObj(const string& path) const {
   out.close();
   cerr << " - model output to " << path << endl;
 }
+
+model * model::create_submodel(const list<uint> & fids)
+{
+    objModel data;
+
+    // UV coordinates
+    bool has_uv= this->texture_pts.empty()==false;
+
+    //collect all vertices
+    unordered_map<uint, uint> vids;
+    unordered_map<uint, uint> uvs;
+
+    for (auto fid : fids)
+    {
+        for (short d = 0; d<3; d++){
+          vids[this->tris[fid].v[d]] = 0;
+          if(has_uv) uvs[this->tris[fid].vt[d]] = 0;
+        }
+    }
+
+    //get a list of points
+    uint new_vid = 0;
+    for (auto & vid : vids)
+    {
+        Vpt pt;
+        auto & pos = this->vertices[vid.first].p;
+        pt.x = pos[0];
+        pt.y = pos[1];
+        pt.z = pos[2];
+        data.pts.push_back(pt);
+        vid.second = new_vid++;
+    }
+
+    //go through the uvs
+    uint new_uv=0;
+    for (auto & id : uvs)
+    {
+      V uv;
+      auto & pos=this->texture_pts[id.first];
+      uv.x = pos[0];
+      uv.y = pos[1];
+      data.textures.push_back(uv);
+      id.second = new_uv++;
+    }
+
+    //get a list of faces
+    for (auto fid : fids)
+    {
+        polygon poly;
+        for (short d = 0; d < 3; d++){
+            auto vid=vids[this->tris[fid].v[d]];
+            poly.pts.push_back(vid);
+            if(has_uv){
+              auto uv=uvs[this->tris[fid].vt[d]];
+              poly.textures.push_back(uv);
+            }
+        }
+        data.polys.push_back(poly);
+    }
+
+    data.compute_v_normal();
+
+    //build mesh
+    model * subm = new model();
+    if (subm->build(data, true) == false)
+    {
+        cerr << "! Error: Failed to build a model from face list" << endl;
+        return NULL;
+    }
+
+    // Path of the texture file.
+    subm->texture_path =this->texture_path;
+    subm->material_path=this->material_path;
+
+    //register
+    auto fid_it = fids.begin();
+    for (int fid = 0; fid < subm->t_size; fid++)
+    {
+        subm->tris[fid].source_fid = *fid_it;
+        ++fid_it;
+    }
+
+    return subm;
+}

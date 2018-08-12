@@ -99,6 +99,7 @@ void UnfoldingProblem::run() {
 
   auto start_time = clock();
   auto& config = this->m_unfolder->getConfig();
+
   this->m_max_generateions=min(this->m_max_generateions, config.ga_max_gen);
 
   //there is already a weight, so this is a rerun...
@@ -114,6 +115,8 @@ void UnfoldingProblem::run() {
 
   // generate initial population
   this->generatePopulation();
+  auto init_mutation_rate=getSpecies()->getMutationProb();
+  auto init_cross_rate=getSpecies()->getCrossoverProb();
 
   int generation=1;
   while(m_goal_achieved==false)
@@ -133,10 +136,34 @@ void UnfoldingProblem::run() {
       // callback
       this->generationDone(generation);
 
+      //check if done
       if (m_goal_achieved)
         break;
+
+      //increase the mutation rate when the best individual does not improve
+      if(this->m_generation_survived>100)
+      {
+        auto mprob=init_mutation_rate*pow(1.25,m_generation_survived*1.0/100);
+        auto cprob=init_cross_rate*pow(1.1,m_generation_survived*1.0/100);
+
+        if(mprob>1) mprob=1;
+        if(cprob>1) cprob=1;
+
+        getSpecies()->setMutationProb(mprob);
+        getSpecies()->setCrossoverProb(cprob);
+
+        //cout<<"set mut prob="<<init_mutation_rate*m_generation_survived*1.0/100<<endl;
+        //getSpecies()->setMutationProb(init_mutation_rate*m_generation_survived*1.0/100);
+      }
+      else if(this->m_generation_survived==1)
+      {
+        getSpecies()->setMutationProb(init_mutation_rate);
+        getSpecies()->setCrossoverProb(init_cross_rate);
+      }
+
     }//end for
 
+    //upon failure, ask for more runs
     if(this->m_best_ind.getIsValid()==false)//failed
     {
       m_goal_achieved=false;
@@ -185,7 +212,8 @@ void UnfoldingProblem::trimGene(Individual* ind) {
 
 void UnfoldingProblem::evaluate(Individual* ind) {
   const auto& config = this->m_unfolder->getConfig();
-// avoid cutting on flat edges e.g. diagonals
+
+  // avoid cutting on flat edges e.g. diagonals
   if (config.less_cuts) {
     this->trimGene(ind);
   }
@@ -224,13 +252,13 @@ void UnfoldingProblem::evaluate(Individual* ind) {
     ind->setFitness(post_fitness);
   }
 
-// Evolved a better one, record it!
+  // Evolved a better one, record it!
   if (this->m_best_ind < *ind) {
     UnfoldingState state(ind->getGenome());
     this->m_evolving_seqs.push_back(state);
   }
 
-// is a valid solution
+  // is a valid solution
   if (this->m_unfolder->isFlattened()) {
     ind->setIsValid(true);
   }
@@ -246,7 +274,6 @@ void UnfoldingProblem::generationDone(int generation) {
       || generation == this->m_max_generateions) {
 
     // Update the evolving sequences
-    std::cerr << endl;
     std::cerr << "- Total evolving sequences: " << this->m_evolving_seqs.size()
         << std::endl;
     this->m_unfolder->setEvolvingSeqs(this->m_evolving_seqs);

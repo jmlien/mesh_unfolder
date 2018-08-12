@@ -71,6 +71,9 @@ set(LIBUNFOLDER_SRC
     ${LIBUNFOLDER_SRC}
     model.cpp
     main.cpp
+    net.cpp
+    netset.cpp
+    netsurgent.cpp
     MeshCutter.cpp
     Splitter.cpp
     CD.cpp

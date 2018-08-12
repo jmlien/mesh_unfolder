@@ -26,8 +26,8 @@ int main(int argc, char ** argv) {
   mathtool::srand48(config.seed);
   std::srand(config.seed);
 
-  //
-  readfromfiles();
+  //do it
+  unfold();
 
   // Output the command used...
   for (int i = 0; i < argc; ++i)

@@ -30,6 +30,7 @@ using namespace std;
 #include "LPUnfolding.h"
 #include "UnfoldingProblem.h"
 #include "CompactProblem.h"
+#include "netsurgent.h"
 using namespace masc::unfolding;
 
 #include "util/DataHelper.h"
@@ -126,6 +127,20 @@ bool parseArg(int argc, char ** argv) {
         cerr << "!Error! Unknown objective type = " << obj << endl;
         return false;
       }
+    } else if (arg == "-surgery") {
+        const auto method = string(argv[++i]);
+        if (method == "set") {
+          config.surgery_method = NetSurgery::SET_COVER_SURGERY;
+        } else if (method == "topo") {
+          config.surgery_method = NetSurgery::TOPOLOGICAL_SURGERY;
+        } else if (method == "sub") {
+          config.surgery_method = NetSurgery::SUBDIVID_SURGERY;
+        }  else if (method == "caging") {
+          config.surgery_method = NetSurgery::CAGING_SURGERY;
+        } else {
+          cerr << "!Error! Unknown surgery type = " << method << endl;
+          return false;
+        }
     } else if (arg == "-g") {
       config.disable_gui = true;
     } else if (arg == "-rb") {
@@ -188,7 +203,10 @@ bool parseArg(int argc, char ** argv) {
     } else if (arg == "-rapid") {
       config.use_rapid = true;
     } else if (arg == "-tab") {
-      config.add_tabs = true;
+      config.svg_add_tabs = true;
+    } else if (arg == "-chamfer") {
+      config.svg_valley_chamfer = true;
+      config.svg_valley_chamfer_width_ratio = stof(argv[++i]);
     } else if (arg == "-nbb") {
       config.find_best_base_face = false;
     } else if (arg == "-ordered") {
@@ -316,12 +334,20 @@ void printUsage(char * name) {
   cerr <<"Net Optimization\n";
   cerr << "  -objective # | specify the objective for optimization\n";
   cerr << "     hull_area (minimize convex hull area)\n";
-  cerr << "     cut_length (minimize cut edge length)\n\n";
-  cerr << "     box (minimize the longest side of bounding box)\n\n";
+  cerr << "     cut_length (minimize cut edge length)\n";
+  cerr << "     box (minimize the longest side of bounding box)\n";
   cerr << "     polygon (caging polygon, see -polygon)\n\n";
 
-  cerr <<"Polygon Net Optimization\n";
-  cerr << "  -polygon stencil_image.png/jpg | specify polygon for optimization\n";
+  cerr <<"Net Surgery\n";
+  cerr << "  -surgery # | specify the surgery method\n";
+  cerr << "     set (minimize convex hull area)\n";
+  cerr << "     topo (minimize cut edge length)\n";
+  cerr << "     sub (minimize the longest side of bounding box)\n";
+  cerr << "     caging (caging polygon, see -polygon)\n\n";
+
+
+  cerr <<"Polygon Net Surgery/Optimization\n";
+  cerr << "  -polygon stencil_image.png/jpg | specify polygon for caging/optimization\n\n";
 
   cerr << "Dumping SVG\n";
   cerr
@@ -390,11 +416,10 @@ inline void run_cluster_unfolder(Unfolder* unfolder)
   }
 } //run_cluster_unfolder()
 
-bool readfromfiles()
+bool unfold()
 {
   long vsize = 0;
   long fsize = 0;
-
   uint id = 0;
 
   auto start = clock();
@@ -420,7 +445,7 @@ bool readfromfiles()
 
     if(!config.quite)
       cout << "- Done reading " << m->v_size << " vertices and " << m->t_size
-          << " facets" << endl;
+           << " facets" << endl;
 
     Unfolder* unfolder = new Unfolder(m, config);
     unfolder->measureModel();
@@ -527,7 +552,8 @@ bool readfromfiles()
       }
     }
 
-    // In clustering mode, each cluster should be added to *unfolders*, skip here.
+    // In clustering mode, each cluster should already have been added to
+    // *unfolders*, skip here.
     if (config.heuristic != CutHeuristic::CLUSTERING)
     {
       unfolder->rebuildModel();
@@ -538,6 +564,19 @@ bool readfromfiles()
     cout << string(40, '-') << endl;
 
   } //end for (const auto& filename)
+
+  //perform net surgery for each net
+  if(config.surgery_method!=NetSurgery::NO_SURGERY)
+  {
+    vector<Unfolder*> operated;
+    for (auto unfolder : unfolders)
+    {
+      bool r = NetSurgent::operate(unfolder, operated);
+      if(r) delete unfolder; //no loger needed
+      else operated.push_back(unfolder); //add the unoperated unfolding
+    }
+    swap(unfolders,operated);
+  }
 
   auto time_cost = (clock() - start) * 1.0 / CLOCKS_PER_SEC;
 

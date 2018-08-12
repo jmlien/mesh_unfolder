@@ -42,11 +42,11 @@ enum class ExportSVGType {
   FLAT_EDGES_ONLY = 8,           //
   NUMBERS = 16,                  // show number of cut edges
   TEXTURE = 32,                  // show texture
-  NORMAL = BASIC | NUMBERS | TEXTURE,      // basic with numbers
-  NET = BASIC | FLAT_EDGES_ONLY, // show all edges
-  TREE = NET | TREE_ONLY,        // net mode with tree
-  ALL_EDGES = NORMAL | FLAT_EDGES_ONLY
-//TODO(zxi) add mode
+  CHAMFER = 64,                  // chamfer around valley edges
+  NORMAL = BASIC | NUMBERS,               // basic with numbers
+  NET = BASIC | CHAMFER| FLAT_EDGES_ONLY, // show all edges
+  TREE = NET | TREE_ONLY,                 // net mode with tree
+  ALL_EDGES = NORMAL | FLAT_EDGES_ONLY | TEXTURE
 };
 
 inline int operator&(ExportSVGType a, ExportSVGType b) {
@@ -155,6 +155,14 @@ private:
       uint eid;         //eid of the edge that this tab is appended to
   };
 
+  //this is a hexgon attaching to a valley fold
+  struct Chamfer
+  {
+    Vector3d hex_[6];  //the hexgon
+    float width;
+    uint eid;               //eid of the edge that this tab is appended to
+  };
+
   void WriteHeader(ostream& out);
   void WriteStyle(ostream& out);
   void WriteTexture(ostream& out);
@@ -174,6 +182,8 @@ private:
 
   void WriteTabs(ostream& out);
 
+  void WriteChamfers(ostream& out);
+
   void WriteTree(ostream& out);
   void WriteLabels(ostream & out);
   void WriteFooter(ostream& out);
@@ -185,6 +195,10 @@ private:
   //tab related Methods
   void BuildTabs();
   Tab BuildTab(Vector3d& a, Vector3d& b, Vector3d& dir, double len, uint eid );
+
+  //chamfer related Methods
+  void BuildChamfers();
+  Chamfer BuildChamfer(Vector3d& a, Vector3d& b, Vector3d& c, Vector3d& d, float len_ratio, uint eid);
 
   //check if the given tab is valid (ie without intersection with the cut polygon and other tabs)
   bool IsValid(const Tab& tab) const;
@@ -282,6 +296,7 @@ private:
   std::unique_ptr<TextureRenderer2D> texture_render_;
 
   unordered_map<uint, Tab> tabs_; //the first uint is the eid
+  unordered_map<uint, Chamfer> chamfers_; //the first uint is the eid
   list<uint> border_cut_eids_;
   list< list<uint> > zip_line_vids_;
   list<uint> zip_line_eids_;

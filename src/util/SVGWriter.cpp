@@ -46,7 +46,7 @@ void SVGWriter::Init() {
   }
 
   //expand the box to accomondate tabs
-  if (this->config_.add_tabs) {
+  if (this->config_.svg_add_tabs) {
     Vector3d dim = box.getDim() * 0.55f; //scale must be >0.5
     Vector3d mid = (box.getMin() + box.getMax()) * 0.5;
     box.addPoint(mid + dim);
@@ -74,17 +74,17 @@ void SVGWriter::Init() {
       + ", " + std::to_string(dashed_length) + ";";
 
   const string boundary_style = "stroke:rgb(0,0,0);stroke-width:"
-      + std::to_string(stroke_width * 2) + ";fill:none";
+      + std::to_string(stroke_width * 2) + ";fill:none;stroke-linejoin:round";
   const string normal_style = "stroke:rgb(128,128,128);stroke-width:"
       + std::to_string(stroke_width);
   const string mountain_style = "stroke:rgb(255,0,0);stroke-width:"
-      + std::to_string(stroke_width) + ";"; // + dashed_line;
+      + std::to_string(stroke_width) + ";stroke-linecap:round;"; // + dashed_line;
 
   const string valley_style = "stroke:rgb(0,0,255);stroke-width:"
-      + std::to_string(stroke_width) + ";";
+      + std::to_string(stroke_width) + ";stroke-linecap:round;";
 
   const string hint_style = "stroke:rgb(240,200,0);stroke-width:"
-      + std::to_string(stroke_width * 2) + ";";
+      + std::to_string(stroke_width * 2) + ";stroke-linecap:round;";
 
   const string zip_style = "stroke:rgb(0,240,200);stroke-width:"
       + std::to_string(stroke_width / 2) + ";";
@@ -101,6 +101,9 @@ void SVGWriter::Init() {
   const string tab_style = "stroke:rgb(0,0,255);stroke-width:"
       + std::to_string(stroke_width / 2) + ";fill:none";
 
+  const string chamfer_style = "stroke:rgb(0,125,0);stroke-width:"
+      + std::to_string(stroke_width / 2) + ";fill:green;fill-opacity:0.5";
+
   styles_["m"] = mountain_style;
   styles_["v"] = valley_style;
   styles_["b"] = boundary_style;
@@ -110,6 +113,7 @@ void SVGWriter::Init() {
   styles_["h"] = hint_style;
   styles_["z"] = zip_style;
   styles_["tab"] = tab_style;
+  styles_["chamfer"] = chamfer_style;
 
   const auto scale_factor = config_.scale;
 
@@ -144,13 +148,23 @@ void SVGWriter::Save(const string& output_path, ExportSVGType type) {
   }
 
   AnalyzeNet();
-  if (config_.add_tabs)
+  if (this->config_.svg_add_tabs)
     BuildTabs();
+
+  if (this->config_.svg_valley_chamfer)
+    BuildChamfers();
 
   //don't write anything else if the texture is the only thing we need
   if(type != ExportSVGType::TEXTURE)
   {
     this->WriteBoundaryPolygon(out);
+
+    //chamfers
+    if(type & ExportSVGType::CHAMFER && this->config_.svg_valley_chamfer)
+    {
+      if (this->config_.svg_valley_chamfer)
+        WriteChamfers(out);
+    }
 
     if (type == ExportSVGType::CUT) {
       this->WriteCreases(out);
@@ -162,7 +176,7 @@ void SVGWriter::Save(const string& output_path, ExportSVGType type) {
         //mark cut edges
         this->WriteCutEdgeHints(out);
         //tabs
-        if (config_.add_tabs)
+        if (this->config_.svg_add_tabs)
           WriteTabs(out);
       }
     }
@@ -267,13 +281,14 @@ void SVGWriter::WriteBoundaryPolygon(ostream& out) {
     out << v[0] << " " << v[2];
 
     //output tab for the current edge, if there is any
-    if (i != 0 && tabs_.empty() == false) {
+    //if (i != 0 && tabs_.empty() == false) {
+    if (tabs_.empty() == false)
+    {
       int j = (i + 1) % vsize;
       uint eid = this->geteid(boundary_vertices_[i], boundary_vertices_[j]);
       //find if there is a tab created for this edge
-      //if( find(border_cut_eids_.begin(), border_cut_eids_.end(), eid)!=border_cut_eids_.end())
-      //{
-      if (tabs_.find(eid) != tabs_.end()) {
+      if (tabs_.find(eid) != tabs_.end())
+      {
         Tab & tab = tabs_[eid];
         const auto& start = tab.shape_.front();
         Vector3d u = this->GetSVGCoord(boundary_vertices_[j]);
@@ -615,11 +630,33 @@ void SVGWriter::WriteCutEdgeHints(ostream& out) {
   out << "\" />" << endl;
 }
 
-void SVGWriter::WriteLabels(ostream & out) {
+void SVGWriter::WriteLabels(ostream & out)
+{
+
+  //face id
+  for (int i = 0; i < this->model_->t_size; ++i)
+  {
+    const triangle& t = this->model_->tris[i];
+    int id=(t.source_fid==-1)?i:t.source_fid;
+    Vector3d p0 = GetSVGCoord(t.v[0]);
+    Vector3d p1 = GetSVGCoord(t.v[1]);
+    Vector3d p2 = GetSVGCoord(t.v[2]);
+    Vector3d center( (p0[0]+p1[0]+p2[0])/3, 0, (p0[2]+p1[2]+p2[2])/3);
+    stringstream ss;
+    ss << "<text x=\"" << center[0] << "\" y=\"" << center[2]
+        << "\" fill=\"gold\" font-weight=\"bold\" font-size=\""
+        << this->font_size_ << "\">" << id << "</text>";
+    out << ss.str() << endl;
+  }
+
+  //edge id
   for (int i = 0; i < this->model_->e_size; ++i) {
     const edge& e = this->model_->edges[i];
+
+#if 0 //change to 1 to prevent printing crease lines
     if (e.type != 'b')
-      continue; //not a cut edge
+     continue; //not a cut edge
+#endif
 
     int id = (e.parent_id == UINT_MAX) ? i : e.parent_id; //find the original id of this edge
     const triangle& t = model_->tris[e.fid.front()];
@@ -701,6 +738,80 @@ bool SVGWriter::IsValid(const SVGWriter::Tab& tab) const {
   return true; //no intersections
 }
 
+//chamfer related Methods
+void SVGWriter::BuildChamfers()
+{
+
+    for (int i = 0; i < this->model_->e_size; ++i)
+    {
+      const edge& e = this->model_->edges[i];
+      //if (e.folding_angle >=0 || e.type == 'b') continue; //not a valley
+      //if (e.parent_id == UINT_MAX) continue; //no parent ID defined
+
+      if (e.type == 'b' || e.folding_angle >=0 ) continue; //a cut edge
+
+      //get triangles incident to the fold edge
+      const triangle& t1 = model_->tris[e.fid.front()];
+      Vector3d p1 = GetSVGCoord(e.vid[0]);
+      Vector3d p2 = GetSVGCoord(e.vid[1]);
+      Vector3d p3 = GetSVGCoord(otherv(t1, e));
+
+      auto v1 = (p2 - p1).normalize();
+      if ((v1 % (p3 - p1).normalize())[1] < 0) {
+        swap(p1, p2);
+        v1 = -v1;
+      }
+
+      const triangle& t2 = model_->tris[e.fid.back()];
+      Vector3d p4 = GetSVGCoord(otherv(t2, e));
+
+      //so the incident polygon is p1, p4, p2, p3
+      chamfers_[i]=BuildChamfer(p1,p4,p2,p3, config_.svg_valley_chamfer_width_ratio, i);
+    }    //end for i
+}
+
+//build a chamfer around edge (a,c) with opposite vertices c and d
+//width of the angle is porpotion to the dihedral angle of eid
+SVGWriter::Chamfer SVGWriter::BuildChamfer
+(Vector3d& a, Vector3d& b, Vector3d& c, Vector3d& d, float len_ratio, uint eid)
+{
+  const edge& e = this->model_->edges[eid];
+  float width= fabs(e.folding_angle*len_ratio);
+
+  Vector3d ca=(c-a).normalize();
+  Vector3d ba=(b-a);
+  Vector3d bc=(b-c);
+  Vector3d n(ca[2],ca[1],-ca[0]);
+  double W_ba=width/fabs(ba*n);
+  double W_bc=width/fabs(bc*n);
+  if(W_ba>1) W_ba=1;
+  if(W_bc>1) W_bc=1;
+  Vector3d b1=a+ba*W_ba;
+  Vector3d b2=c+bc*W_bc;
+
+  Vector3d da=(d-a);
+  Vector3d dc=(d-c);
+  double W_da=width/fabs(da*n);
+  double W_dc=width/fabs(dc*n);
+  if(W_da>1) W_da=1;
+  if(W_dc>1) W_dc=1;
+  Vector3d d1=a+da*W_da;
+  Vector3d d2=c+dc*W_dc;
+
+  //build chamfer
+  Chamfer chamfer;
+  chamfer.eid=eid;
+  chamfer.width=width;
+  chamfer.hex_[0]=a;
+  chamfer.hex_[1]=b1;
+  chamfer.hex_[2]=b2;
+  chamfer.hex_[3]=c;
+  chamfer.hex_[4]=d2;
+  chamfer.hex_[5]=d1;
+
+  return chamfer;
+}
+
 SVGWriter::Tab SVGWriter::BuildTab(Vector3d& a, Vector3d& b, Vector3d& dir,
     double len, uint eid) {
   if (dir.norm() < len) {
@@ -708,7 +819,7 @@ SVGWriter::Tab SVGWriter::BuildTab(Vector3d& a, Vector3d& b, Vector3d& dir,
   }
 
   Tab tab;
-  Bezier(a, (a + b) / 2 + dir, b, tab.shape_, 10);
+  Bezier(a, (a + b) / 2 + dir, b, tab.shape_, 3);
 
   tab.eid = eid;
 
@@ -730,10 +841,7 @@ void SVGWriter::BuildTabs() {
     assert(pe.type == 'b');           //make sure that we have the right parent
     assert(pe.parent_id == UINT_MAX); //make sure that we have the right parent
 
-    //use hard-to fold border cut only
-    if (find(border_cut_eids_.begin(), border_cut_eids_.end(), i)
-        == border_cut_eids_.end())
-      continue;
+
 
     //get triangles incident to the cut edges
     const triangle& t1 = model_->tris[e.fid.front()];
@@ -759,30 +867,44 @@ void SVGWriter::BuildTabs() {
       v2 = -v2;
     }
 
-    //Quaternion rotq=rotation( p2-p1, p4-p5);
-
     //tab 1 is p1, m1, (p1+m1)/2+v2
     Vector3d m1 = (p1 + p2) / 2; //make a tab between p1 and m1
     Vector3d m2 = (p2 + m1) / 2;
     Vector3d n1(-v1[2], 0, v1[0]);
-    //v1=-v1;
-    //Vector3d v1  = rotq.rotate( (p3-m2) )/2; //.normalize();
-    //Vector3d v1 = ()
 
     Vector3d m3 = (p4 + p5) / 2; //make a tab between p4 and m3
     Vector3d m4 = (p5 + m3) / 2;
     Vector3d n2(-v2[2], 0, v2[0]);
-    //v2=-v2;
-    //Vector3d v2  = (-rotq).rotate( (p6-m4) )/2;//.normalize();
 
-    double tab_length = (p1 - m1).norm();
-    Tab tab1 = BuildTab(p1, m1, n1, tab_length, i);
-    Tab tab2 = BuildTab(p4, m3, n2, tab_length, e.parent_id);
+    //build tabs for hard-to fold border cut
+    if (find(border_cut_eids_.begin(), border_cut_eids_.end(), i) != border_cut_eids_.end())
+    {
+        double elen=(m1-p1).norm();
+        double tab_length1 = min(elen,fabs((p6 - p4)*n2.normalize()*0.9));
+        double tab_length2 = min(elen,fabs((p3 - p1)*n1.normalize()*0.9));
+        Tab tab1 = BuildTab(p1, p2, n1, tab_length1, i);
+        Tab tab2 = BuildTab(p4, p5, n2, tab_length2, e.parent_id);
 
-    if (IsValid(tab1))
-      tabs_[tab1.eid] = tab1;
-    if (IsValid(tab2))
-      tabs_[tab2.eid] = tab2;
+        if (IsValid(tab1))
+          tabs_[tab1.eid] = tab1;
+
+        else if (IsValid(tab2))
+          tabs_[tab2.eid] = tab2;
+    }
+    else //zip edges
+    {
+      //double tab_length = (p1 - m1).norm()/2;
+      double elen=(m1-p1).norm();
+      double tab_length = min(elen,fabs((p3 - p1)*n1.normalize()*0.9));
+      Tab tab1 = BuildTab(p1, p2, n1, tab_length, i);
+      if (IsValid(tab1))
+        tabs_[tab1.eid] = tab1;
+      else
+      {
+        //clip tab using p4, p5, p6
+      }
+    }
+
   }    //end for i
 }
 
@@ -797,9 +919,27 @@ void SVGWriter::WriteTabs(ostream& out) {
     for (auto it = ++tab.shape_.begin(); it != tab.shape_.end(); it++) {
       out << " L " << (*it)[0] << " " << (*it)[2];
     }
-    out << " L " << start[0] << " " << start[2];
+    //out << " L " << start[0] << " " << start[2];
   }
   out << "\" />" << endl;
+}
+
+
+//output chamfer info for valley folds
+void SVGWriter::WriteChamfers(ostream& out) {
+
+  for (auto& c : chamfers_) {
+    auto& chamfer = c.second;
+    const auto& start = chamfer.hex_[0];
+    out << "  <path class=\"chamfer\" d=\"";
+    out << " M " << start[0] << " " << start[2];
+    for (short i=1;i<6;i++) {
+      out << " L " << chamfer.hex_[i][0] << " " << chamfer.hex_[i][2];
+    }
+    out << " L " << start[0] << " " << start[2];
+    out << "\" />" << endl;
+  }
+
 }
 
 void SVGWriter::WriteFooter(ostream& out) {

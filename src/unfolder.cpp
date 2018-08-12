@@ -308,7 +308,7 @@ int Unfolder::buildFromCuts(const vector<pair<int, int>>& edges,
 
   if (!m_config.quite)
     cerr << " - Building Unfolding From Cuts, # cuts = " << edges.size()
-        << endl;
+         << endl;
 
   vector<float> weights(this->m_m->e_size, 0);
 
@@ -2188,9 +2188,10 @@ int Unfolder::checkOverlaps() {
 }
 
 // count local overlaps due to insufficient count for hyperbolic vertex
-int Unfolder::checkLocalOverlaps() {
+int Unfolder::checkLocalOverlaps()
+{
   int overlaps = 0;
-  int concave_vertex = 0;
+  //int concave_vertex = 0;
 
   for (auto i = 0; i < this->m_m->v_size; ++i) {
     const auto& v = this->m_m->vertices[i];
@@ -2199,9 +2200,9 @@ int Unfolder::checkLocalOverlaps() {
     if (!v.hyperbolic)
       continue;
 
-    concave_vertex++;
+    //concave_vertex++;
 
-    int cuts = 0;
+    //int cuts = 0;
     for (const auto eid : v.m_e) {
       const edge e = this->m_m->edges[eid];
       if (e.fid.size() == 1)
@@ -2212,8 +2213,8 @@ int Unfolder::checkLocalOverlaps() {
       if (this->isCutEdge(eid) && this->m_overlap_pairs[fid1].count(fid2)) {
         overlaps++;
       }
-    }
-  }
+    }//end for eid
+  }//end for i
 
   return overlaps;
 }
@@ -2577,7 +2578,7 @@ vector<float> Unfolder::optimizeUnfolding() {
   vector<float> best_weights = this->m_weights;
   vector<float> my_weights = this->m_weights;
   float best_cut_length = this->getTotalCutLength();
-  set<int> best_fold_edges = this->m_fold_edges;
+  set<uint> best_fold_edges = this->m_fold_edges;
 
   if (!m_config.quite)
     cerr << "- init best cut_length = " << best_cut_length << endl;

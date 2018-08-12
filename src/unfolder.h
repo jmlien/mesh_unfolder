@@ -154,6 +154,13 @@ public:
   /// Will modify unfolding.
   void sync(model* unfolding) const;
 
+	/// called once after instantiated
+  void measureModel();
+
+  /// Optimize unfolding to find the one with min total cut length
+  /// Return the weights of dual edges
+  vector<float> optimizeUnfolding();
+
   /// -------------------------------------------------------
   /// dumping
   /// -------------------------------------------------------
@@ -184,12 +191,35 @@ public:
 
   void dumpSVG(const std::string& path, ExportSVGType svg_type);
 
+
   /// -------------------------------------------------------
-  /// access
+  /// Overlaps/Collision methods
+  /// -------------------------------------------------------
+
+  /// check whether current unfolding has overlap or not
+  /// return the number of pairs faces that overlapped
+  int checkOverlaps();
+
+  /// check if a given pair of faces (indexed by i and j) overlaps.
+  /// return true if they overlap
+  bool checkOverlap(uint i, uint j);
+
+  /// New method
+  bool checkOverlapNew(uint i, uint j);
+
+  // count local overlaps due to insufficient count for hyperbolic vertex
+  int checkLocalOverlaps();
+
+  /// check whether current folded model has collision or not
+  bool checkCollision();
+
+	/// -------------------------------------------------------
+  /// access methods
   /// -------------------------------------------------------
 
   /// get model
   model* getModel() const;
+
   const model* getNet() const;
 
   const Config& getConfig() const;
@@ -220,23 +250,6 @@ public:
 
   const bool isFlattened() const;
 
-  /// check whether current unfolding has overlap or not
-  /// return the number of pairs faces that overlapped
-  int checkOverlaps();
-
-  /// check if a given pair of faces (indexed by i and j) overlaps.
-  /// return true if they overlap
-  bool checkOverlap(uint i, uint j);
-
-  /// New method
-  bool checkOverlapNew(uint i, uint j);
-
-  // count local overlaps due to insufficient count for hyperbolic vertex
-  int checkLocalOverlaps();
-
-  /// check whether current folded model has collision or not
-  bool checkCollision();
-
   /// get parent face id
   const int getParentFaceId(const int fid) const {
     return this->m_parents[fid];
@@ -247,20 +260,13 @@ public:
   }
 
   // {eid}
-  const set<int>& getFoldEdges() const {
+  const set<uint>& getFoldEdges() const {
     return this->m_fold_edges;
   }
 
   const double getMaxPathLength() const {
     return this->m_max_path_len;
   }
-
-  /// called once after instantiated
-  void measureModel();
-
-  /// Optimize unfolding to find the one with min total cut length
-  /// Return the weights of dual edges
-  vector<float> optimizeUnfolding();
 
   /// get current base id
   uint getBaseFaceID() const {
@@ -346,6 +352,9 @@ public:
 
   /// Get hull area
   float getHullArea() const;
+
+	//
+	const MESH & getUnfoldedMesh() const { return m_unfolded; }
 
 private:
 
@@ -479,7 +488,7 @@ private:
   Config m_config;
 
   /// parent face id of edge face, -1 means no parent
-  vector<int> m_parents;
+  vector<int> m_parents; //has size of m->face
 
   /// ---------------------------------------------------------------
   /// For packing
@@ -560,7 +569,7 @@ private:
 	bool * m_selected_edges; //true if this edge is a crease
 
   // eid -> true/false
-  set<int> m_fold_edges;
+  set<uint> m_fold_edges;
 
   // init fold angles for fold edges orded by eid
   vector<double> m_init_fold_angles;
