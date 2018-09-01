@@ -2084,7 +2084,6 @@ bool Unfolder::checkOverlapNew(uint i, uint j)
   double r2[2] = { m_unfolded[j][2].second[0], m_unfolded[j][2].second[2] };
 
   intersected = tri_tri_overlap_test_2d(p1, q1, r1, p2, q2, r2);
-
   if (intersected) {
     this->m_m->tris[i].overlapped = true;
     this->m_m->tris[j].overlapped = true;

@@ -3,10 +3,12 @@
 
 namespace masc {
 
-Net::Net(model * m, const set<uint>& crease_edges)
+Net::Net(model * m, const set<uint>& crease_edges, Net * p1, Net * p2)
 {
     m_orig=m;
     m_subm=NULL;
+    m_parents[0]=p1;
+    m_parents[1]=p2;
     m_creases=crease_edges;
 
     set<uint> faceset;
@@ -18,19 +20,33 @@ Net::Net(model * m, const set<uint>& crease_edges)
 
     m_faces.insert(m_faces.end(), faceset.begin(), faceset.end());
     build_subm();
+    unfold_subm();
 }
 
-Net::Net(model * m, int fid)
+Net::Net(Net * n)
+{
+  m_orig=n->m_orig;
+  m_subm=n->m_subm;
+  m_faces=n->m_faces;
+  m_subm_crease_lines=n->m_subm_crease_lines;
+  m_creases=n->m_creases;
+  m_overlap_pairs=n->m_overlap_pairs;
+}
+
+Net::Net(model * m, int fid, Net * p1)
 {
     m_orig=m;
     m_subm=NULL;
+    m_parents[0]=p1;
+    m_parents[1]=NULL;
     m_faces.push_back(fid);
     build_subm();
+    unfold_subm();
 }
 
 Net::~Net()
 {
-    if(m_subm!=NULL) delete m_subm;
+    //if(m_subm!=NULL) delete m_subm;
 }
 
 //split the net along the edge eid
@@ -67,11 +83,11 @@ pair<Net *, Net*> Net::split(uint eid)
 }
 
 //split the net using a seed_fid and cut edge id (eid)
-Net * Net::split(uint eid, uint seed_fid, vector<bool>& face_visited)
+Net * Net::split(uint eid, uint subm_seed_fid, vector<bool>& face_visited)
 {
   set<uint> newcreases;
-  list<uint> open; open.push_back(seed_fid);
-  face_visited[seed_fid]=true;
+  list<uint> open; open.push_back(subm_seed_fid);
+  face_visited[subm_seed_fid]=true;
 
   while(open.empty()==false)
   {
@@ -96,12 +112,12 @@ Net * Net::split(uint eid, uint seed_fid, vector<bool>& face_visited)
     }
   }//end while
 
-  cout<<"newcreases size="<<newcreases.size()<<endl;
-
   if(!newcreases.empty())
-    return new Net(m_orig, newcreases);
+    return new Net(m_orig, newcreases, this);
   else //the only face is seed_fid
-    return new Net(m_orig, seed_fid);
+  {
+    return new Net(m_orig, m_subm->tris[subm_seed_fid].source_fid, this);
+  }
 }
 
 //merge two nets at a given eid
@@ -110,16 +126,13 @@ Net * Net::merge(Net * n2, uint eid)
   set<uint> merged_creases=this->m_creases;
   merged_creases.insert(n2->m_creases.begin(),n2->m_creases.end());
   merged_creases.insert(eid);
-  return new Net(m_orig, merged_creases);
+  return new Net(m_orig, merged_creases, this, n2);
 }
 
 void Net::build_subm()
 {
-  if(m_subm!=NULL) delete m_subm;
-
-  m_subm=m_orig->create_submodel(m_faces);
+  m_subm=shared_ptr<model>(m_orig->create_submodel(m_faces));
   assert(m_subm);
-  unfold_subm();
 }
 
 //unfold m_subm into m_unfolding
@@ -128,33 +141,76 @@ void Net::unfold_subm()
     //create an unfolder
     Config config;
     config.quite=true;
-    Unfolder * unfolder=toUnfolder(config, true);
+    config.record_overlap=(m_parents[0]==NULL);
+    Unfolder * unfolder=toUnfolder(config, config.record_overlap );
 
     //remember results
-    this->m_unfolded=unfolder->getUnfoldedMesh();
+    //this->m_subm_unfolded=unfolder->getUnfoldedMesh();
     const bool * crease=unfolder->getSelectedEdges();
     this->m_subm_crease_lines=vector<bool>(crease,crease+m_subm->e_size);
-    auto & overlaps = unfolder->getOverlppingFacePairs();
-    for(uint a=0;a<m_subm->t_size;a++)
+
+    if(m_parents[0]==NULL)//no parents, overlaps are created in unfolder
     {
-      for(uint b : overlaps[a])
+      auto & overlaps = unfolder->getOverlppingFacePairs();
+      for(uint a=0;a<m_subm->t_size;a++)
       {
-        if(a>=b) continue; //this will be handled by (b,a)
-        //cout<<"overlaps a="<<a<<" b="<<b<<endl;
-        this->m_overlap_pairs.insert(make_pair(m_subm->tris[a].source_fid,m_subm->tris[b].source_fid));
-      }//end for b
-    }//end for a
+        for(uint b : overlaps[a])
+        {
+          if(a>=b) continue; //this will be handled by (b,a)
+          this->m_overlap_pairs.insert(make_pair(m_subm->tris[a].source_fid,m_subm->tris[b].source_fid));
+        }//end for b
+      }//end for a
+    }
+    else //net created by split or merge
+    {
+       unordered_map<int,uint> fidmap;
+       fidmap.reserve(m_subm->t_size);
+       for(uint i=0;i<m_subm->t_size;i++)
+       {
+         fidmap[m_subm->tris[i].source_fid]=i;
+       }
+
+       //
+       if(m_parents[1]==NULL){ //net created by split
+          //
+          for(auto& overlap : m_parents[0]->m_overlap_pairs)
+          {
+            int f1=overlap.first;
+            int f2=overlap.second;
+            if( fidmap.find(f1)==fidmap.end() ) continue;
+            if( fidmap.find(f2)==fidmap.end() ) continue;
+            if(unfolder->checkOverlapNew(fidmap[f1],fidmap[f2]))
+              this->m_overlap_pairs.insert(overlap);
+          }
+       }
+       else{ //m_parents[0]!=NULL && m_parents[1]!=NULL
+          //net created by merging
+          this->m_overlap_pairs=m_parents[0]->m_overlap_pairs;
+          this->m_overlap_pairs.insert(m_parents[1]->m_overlap_pairs.begin(), m_parents[1]->m_overlap_pairs.end());
+          for(auto& f1 : m_parents[0]->m_faces)
+          {
+            for(auto& f2 : m_parents[1]->m_faces)
+            {
+              if(unfolder->checkOverlapNew(fidmap[f1],fidmap[f2]))
+                this->m_overlap_pairs.insert( (f1<f2)?make_pair(f1,f2):make_pair(f2,f1));
+            }//end f2
+          }//end f1
+       }
+    }
 
     delete unfolder;
 }
 
 Unfolder * Net::toUnfolder(const Config & config, bool checkoverlap)
 {
+  if(this->m_subm==NULL) build_subm();
+
   //create an unfolder
-  Unfolder * unfolder = new Unfolder(this->m_subm,config);
+  Unfolder * unfolder = new Unfolder(this->m_subm.get(),config);
 
   //create weights so all weights are 1 initiall and 0 for crease_style
   vector<float> weights(m_subm->e_size, 1);
+
   //for (uint eid : this->m_creases) weights[eid] = 0.0;
   for(uint i=0;i<m_subm->e_size;i++)
   {
@@ -169,13 +225,6 @@ Unfolder * Net::toUnfolder(const Config & config, bool checkoverlap)
 
   //unfold using weights
   unfolder->buildFromWeights(weights, checkoverlap);
-
-  //unfold using weights
-  //unfolder.buildFromWeights(weights, true);
-  //unfolder.rebuildModel();
-  //unfolder.unfoldTo(0.0);
-  //unfolder.dumpObj("debug.obj");
-  //unfolder.dumpSVG("debug.svg", ExportSVGType::BASIC);
 
   return unfolder;
 }

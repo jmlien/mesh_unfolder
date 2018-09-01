@@ -13,8 +13,8 @@ class Net
 {
 public:
 
-    Net(model * m, const set<uint>& crease_edges);
-    Net(model * m, int fid); //create a net with a single face...
+    Net(model * m, const set<uint>& crease_edges, Net * p1=NULL, Net * p2=NULL);
+    Net(Net * n); //clone a net...
 
     virtual ~Net();
 
@@ -48,6 +48,9 @@ public:
 
 protected:
 
+    //create a net with a single face...
+    Net(model * m, int fid, Net * p1);
+
     //build subm from m_orig and m_faces
     void build_subm();
 
@@ -59,14 +62,30 @@ private:
     //split the net using a seed_fid and cut edge id (eid)
     Net * split(uint eid, uint seed_fid, vector<bool>& face_visited);
 
-    model * m_orig; //original model that this net comes from
-    model * m_subm; //subm for this net
-    MESH  m_unfolded; //unfolding of the m_subm
-    set< pair<uint,uint> > m_overlap_pairs; //pairs of overlapping faces
+    //data
+    Net * m_parents[2]; //where this net is from
+
+    //these are local data and ids of m_subm
+    shared_ptr<model> m_subm; //subm for this net
+
+    //MESH  m_subm_unfolded; //unfolding of the m_subm
     vector<bool> m_subm_crease_lines; //in subm, which edges are crease lines.
 
+    //these are data and ids of m_orig
+    model * m_orig; //original model that this net comes from
     list<uint> m_faces;
     set<uint> m_creases;
+    set< pair<uint,uint> > m_overlap_pairs; //pairs of overlapping faces
 };
+
+
+//
+inline ostream & operator<<(ostream & out, Net & net) {
+  out<<"(";
+  for(auto& id : net.getFaces()) cout<<id<<", ";
+  out<<")";
+  return out;
+}
+
 
 }//end namespace masc

@@ -1262,6 +1262,8 @@ model * model::create_submodel(const list<uint> & fids)
     //collect all vertices
     unordered_map<uint, uint> vids;
     unordered_map<uint, uint> uvs;
+    vids.reserve(this->v_size);
+    uvs.reserve(this->v_size);
 
     for (auto fid : fids)
     {
@@ -1297,7 +1299,7 @@ model * model::create_submodel(const list<uint> & fids)
     }
 
     //get a list of faces
-    for (auto fid : fids)
+    for (auto& fid : fids)
     {
         polygon poly;
         for (short d = 0; d < 3; d++){
@@ -1329,7 +1331,9 @@ model * model::create_submodel(const list<uint> & fids)
     auto fid_it = fids.begin();
     for (int fid = 0; fid < subm->t_size; fid++)
     {
-        subm->tris[fid].source_fid = *fid_it;
+        int sfid=*fid_it;
+        int ssfid=tris[sfid].source_fid;
+        subm->tris[fid].source_fid = (ssfid==-1)?sfid:ssfid;
         ++fid_it;
     }
 

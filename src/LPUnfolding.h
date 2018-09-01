@@ -42,13 +42,13 @@ namespace masc {
 
 
 			//////////////////////////////////////////
-			// given a weight, unfold the model, find the overlaps. 
+			// given a weight, unfold the model, find the overlaps.
 			// for each pair of overlapping facets, find a shortest path (i.e loop) connecting them.
 			// note that each loop is composed of a list of edge ids; not facet ids
 			void find_conflict_loops(const vector<float>& weight, list< list<uint> >& loops);
 
-			// given a weight (1 means cut, 0 means no cut), find the connected components. 
-			// note that each loop is composed of a list of edge ids shared between different compnents; 
+			// given a weight (1 means cut, 0 means no cut), find the connected components.
+			// note that each loop is composed of a list of edge ids shared between different compnents;
 			// not facet ids
 			int find_face_ccs(const vector<float>& weight, list< list<uint> >& ccs);
 
@@ -74,11 +74,11 @@ namespace masc {
 				LP_constraints(){ type = 1;  upper_bound = lower_bound = 0; }
 				vector<uint> eids; //edges involed in this constraint
 
-				int type;  //GLP_FR    free (unbounded) variable, (1) 
-			 			   //GLP_LO    lower bound      
-						   //GLP_UP    upper bound        
-						   //GLP_DB    double bound       
-						   //GLP_FX    fixed         
+				int type;  //GLP_FR    free (unbounded) variable, (1)
+			 			       //GLP_LO    lower bound
+						       //GLP_UP    upper bound
+						       //GLP_DB    double bound
+						       //GLP_FX    fixed         
 
 				int upper_bound;
 				int lower_bound;
