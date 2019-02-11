@@ -150,7 +150,6 @@ private:
         return false;
       }
 
-      //Vector3d a, b, c; //ab is on the cut edge
       list<Vector3d> shape_;
       uint eid;         //eid of the edge that this tab is appended to
   };
@@ -265,6 +264,12 @@ private:
         return eid;
     }
     return UINT_MAX;
+  }
+
+  //check if the given eid is an border cut edge (i.e. non-zip edge)
+  inline bool isBorderCutEdge(uint eid) const
+  {
+    return find(border_cut_eids_.begin(), border_cut_eids_.end(), eid) != border_cut_eids_.end();
   }
 
   bool inited_;

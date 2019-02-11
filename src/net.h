@@ -82,7 +82,7 @@ private:
 //
 inline ostream & operator<<(ostream & out, Net & net) {
   out<<"(";
-  for(auto& id : net.getFaces()) cout<<id<<", ";
+  for(auto& id : net.getFaces()) out<<id<<", ";
   out<<")";
   return out;
 }

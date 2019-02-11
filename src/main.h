@@ -137,6 +137,10 @@ bool parseArg(int argc, char ** argv) {
           config.surgery_method = NetSurgery::SUBDIVID_SURGERY;
         }  else if (method == "caging") {
           config.surgery_method = NetSurgery::CAGING_SURGERY;
+        } else if (method == "boxing") {
+          config.surgery_method = NetSurgery::BOXING_SURGERY;
+          config.svg_boxing_width  =atof(argv[++i]);
+          config.svg_boxing_height =atof(argv[++i]);
         } else {
           cerr << "!Error! Unknown surgery type = " << method << endl;
           return false;
@@ -340,9 +344,10 @@ void printUsage(char * name) {
 
   cerr <<"Net Surgery\n";
   cerr << "  -surgery # | specify the surgery method\n";
-  cerr << "     set (minimize convex hull area)\n";
-  cerr << "     topo (minimize cut edge length)\n";
-  cerr << "     sub (minimize the longest side of bounding box)\n";
+  cerr << "     set (using setcover to split a net into non-overlapping nets)\n";
+  cerr << "     topo (using merge and split operators to reduce the number of non-overlapping nets)\n";
+  cerr << "     sub (subdivid a triangle and rearrange sub-triangles to avoid overlap)\n";
+  cerr << "     boxing w# h# (caging box, w# and h# define width and height of the box)\n";
   cerr << "     caging (caging polygon, see -polygon)\n\n";
 
 

@@ -26,6 +26,7 @@ public:
 
     list<Net*> & getNets(){ return m_nets; }
 
+    //get shared cut edges of n1 and n2
     void sharedCutEdges(Net * n1, Net * n2, set<uint>& shared);
 
 

@@ -33,6 +33,7 @@ bool NetSurgent::operate(Unfolder* unfolder, vector<Unfolder*> & operated)
   {
     case NetSurgery::SET_COVER_SURGERY: surgent=new SetCoverNetSurgent(); break;
     case NetSurgery::TOPOLOGICAL_SURGERY: surgent=new TopologicalNetSurgent(10); break;
+    case NetSurgery::CAGING_SURGERY: surgent=new BoxingNetSurgent(config.svg_boxing_width,config.svg_boxing_height); break;
     case NetSurgery::SUBDIVID_SURGERY:
     case NetSurgery::CAGING_SURGERY:
     default:
@@ -50,9 +51,7 @@ bool NetSurgent::operate(Unfolder* unfolder, vector<Unfolder*> & operated)
   int cid=1;
   for(Net* net: nets)
   {
-    cout<<"to unfolder "<<endl;
     Unfolder * tmp=net->toUnfolder(config);
-    cout<<"to unfolder done"<<endl;
     tmp->setClusterId(cid++);
     operated.push_back(tmp);
   }
@@ -270,6 +269,8 @@ bool SetCoverNetSurgent::SolveSetCover
     unordered_map<uint,uint> eid2index;
     vector<int> index2eid;
 
+    glp_term_out(GLP_OFF); //make glpk silient
+
     //build mapping between edge ids and index (order of edges in LP)
     uint index=0;
     for(const list<uint> & epath : epaths)
@@ -289,7 +290,7 @@ bool SetCoverNetSurgent::SolveSetCover
       LP_constraints c;
       //cout<<"constaint : ";
       for(uint eid : epath){
-        cout<<eid2index[eid]<<" ";
+        //cout<<eid2index[eid]<<" ";
         c.eids.push_back(eid2index[eid]);
       }
       //cout<<endl;
@@ -332,9 +333,12 @@ bool SetCoverNetSurgent::SolveSetCover
       glp_set_col_kind(lp, i, GLP_BV);
       //MIP
       {
-        //auto & e = m->edges[i - 1];
-        //const auto  & vec = m->vertices[e.vid[0]].p - m->vertices[e.vid[1]].p;
-        //glp_set_obj_coef(lp, i, vec.norm());
+        //use edge length, minimize cut length
+        // auto & e = m->edges[i - 1];
+        // const auto  & vec = m->vertices[e.vid[0]].p - m->vertices[e.vid[1]].p;
+        // glp_set_obj_coef(lp, i, vec.norm());
+
+        //use edge count, minimize the # of components
         glp_set_obj_coef(lp, i, 1);
       }
 
@@ -446,44 +450,65 @@ NetSet * TopologicalNetSurgent::apply(Net * net)
 
   vector<NetMatch> all_matches;
   uint size=netG.getVertexSize();
-  cout<<"there are "<<size<<" nets to merge"<<endl;
-  uint count=0;
+  cout<<"- [Topo Net Surgent] There are "<<size<<" nets to merge"<<endl;
+  //uint count=0;
   for(uint i=0;i<size;i++)
   {
     for(uint j=i+1;j<size; j++)
     {
       //cout<<"i="<<i<<" j="<<j<<endl;
+#if 1 //use only the best
       NetMatch match=getBestMatch(netset, netG.getVertex(i), netG.getVertex(j));
       if(match.error==DBL_MAX) continue; //invalid matching
       all_matches.push_back(match);
       netG.addEdge(i,j,match.eid);
-      count++;
+#else
+      vector<NetMatch> tmp;
+      getMatches(netset, netG.getVertex(i), netG.getVertex(j), tmp);
+      for(NetMatch& match : tmp)
+      {
+        netG.addEdge(i,j,match.eid);
+      }
+      all_matches.insert(all_matches.end(),tmp.begin(),tmp.end());
+#endif //
+
+      //count++;
     }//end j
   }//end i
 
   //create some spanning trees and evaluate their nets
   const double original_error = NetSet(net).evaluate();
   const int generation=20;
-  const int population=20;
+  int population=size*2;
 
-  cout<<"original_error="<<original_error<<endl;
+  cout<<"- [Topo Net Surgent] original_error="<<original_error<<endl;
   vector<TopologicalNetSurgent::NetTree *> trees;
-  cout<<"create initial population"<<endl;
-  for(int i=0;i<population;i++)
+  cout<<"- [Topo Net Surgent] create initial population of "<<population<<" "<<flush;
+  int failed_count=0;
+  for(int i=0;i<population && failed_count<100 ;i++)
   {
-      trees.push_back(netG.getRandomST());
-      cout<<"\ttree error="<<trees.back()->getError()<<endl;
+      auto tree=netG.getRandomST();
+      if(tree->getError()>=original_error){ i--; failed_count++; continue; }
+      trees.push_back(tree);
+      //cout<<"\ttree error="<<tree->getError()<<endl;
+      cout<<"."<<flush;
+      failed_count=0;
   }
-  cout<<"start evolving"<<endl;
+  cout<<"(done)"<<endl;
+  population=trees.size();
+  if(population==0) return netset; //nothing to evolve
+
+  cout<<"- [Topo Net Surgent] start evolving "<<flush;
   for(int i=0;i<generation;i++)
   {
       //create new generations by mutation
       for(int j=0;j<population/2;j++)
       {
         //cout<<"Before mutate"<<endl;
-        uint r=(uint)floor(drand48()*population);
+        uint r=j;//(uint)floor(drand48()*population);
         trees.push_back(trees[r]->Mutate());
         //cout<<"after mutation "<<trees.back()->getError()<<endl;
+        cout<<"."<<flush;
       }
 
       //create new generations by crossing over
@@ -494,6 +519,7 @@ NetSet * TopologicalNetSurgent::apply(Net * net)
         while(t==s) t=(uint)floor(drand48()*population);
         trees.push_back(trees[s]->Crossover(trees[t]));
         //cout<<"after cross over "<<trees.back()->getError()<<endl;
+        cout<<"."<<flush;
       }
 
       //sort by error, smallest error first
@@ -507,44 +533,44 @@ NetSet * TopologicalNetSurgent::apply(Net * net)
       }
       trees.resize(population);
 
-      cout<<"[generation "<< i <<"] best score="<<trees.front()->getError()<<endl;
+      cout<<"\n- [Topo Net Surgent] [generation "<< i <<"] lowest error="<<trees.front()->getError()<<flush;
   }
+  cout<<endl;
 
   //return the first
   if(trees.front()->getError()<original_error)
   {
     delete netset;
-    //cout<<"!!! net face size="<<trees.front()->getNetSet()->getNets().front()->getFaces().size()<<endl;
     netset=trees.front()->getNetSet();
     assert(netset->getNets().size()==1);
-    netset = SetCoverNetSurgent::apply(netset->getNets().front());
+    netset = apply(netset->getNets().front());
+  }
+  else
+  {
+    cout<<"- [Topo Net Surgent] No better netset is found. Done."<<endl;
   }
 
   //free
   for(int j=0;j<trees.size();j++){
     if(netset!=trees[j]->getNetSet()) delete trees[j];
   }
-  //for(auto tree : trees) delete tree;
 
-//cout<<"netset size="<<netset->getNets().size()<<endl;
-//cout<<"netset face size="<<netset->getNets().front()->getFaces().size()<<endl;
-//cout<<"X"<<endl;
   return netset;
 }
 
 TopologicalNetSurgent::NetMatch
 TopologicalNetSurgent::getBestMatch(NetSet * netset, Net * n1, Net * n2)
 {
-  cout<<"========================\n";//"\n n1="<<*n1<<"\n n2="<<*n2<<endl;
   NetMatch best_match(n1,n2);
   set<uint> sharedE;
   netset->sharedCutEdges(n1, n2, sharedE);
   if(sharedE.empty()) return best_match;
 
+  //cout<<"========================\n";//"\n n1="<<*n1<<"\n n2="<<*n2<<endl;
   for(uint eid : sharedE)
   {
     double error=netset->evaluate_merge(eid);
-    cout<<"error = "<<error<<" by merge nets at eid="<<eid<<endl;
+    //cout<<"error = "<<error<<" by merge nets at eid="<<eid<<endl;
     if(error<best_match.error)
     {
       best_match.error=error;
@@ -555,6 +581,25 @@ TopologicalNetSurgent::getBestMatch(NetSet * netset, Net * n1, Net * n2)
   return best_match;
 }
 
+
+void
+TopologicalNetSurgent::getMatches
+(NetSet * netset, Net * n1, Net * n2, vector<TopologicalNetSurgent::NetMatch>& matches)
+{
+  set<uint> sharedE;
+  netset->sharedCutEdges(n1, n2, sharedE);
+
+  //cout<<"========================\n";//"\n n1="<<*n1<<"\n n2="<<*n2<<endl;
+  for(uint eid : sharedE)
+  {
+    NetMatch match(n1,n2);
+    match.error=netset->evaluate_merge(eid);
+    match.eid=eid;
+    if(match.error==DBL_MAX) continue; //invalid matching
+    matches.push_back(match);
+  }
+
+}
 
 TopologicalNetSurgent::NetGraph::NetGraph(NetSet * netset)
 {
@@ -738,5 +783,15 @@ double TopologicalNetSurgent::NetTree::getError()
 
   return this->error;
 }
+
+//
+BoxingNetSurgent::BoxingNetSurgent(float width, float height)
+{
+  m_box_width=width;
+  m_box_height=height;
+}
+
+//
+
 
 }//end namespace masc

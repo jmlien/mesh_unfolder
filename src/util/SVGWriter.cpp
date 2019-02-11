@@ -526,8 +526,7 @@ void SVGWriter::WriteZipHints(ostream& out) {
   for (list<uint>& zipline : this->zip_line_vids_) {
     int mid = zipline.size() / 2;
     auto ptr = zipline.begin();
-    for (int i = 0; i < mid; i++, ptr++)
-      ;
+    for (int i = 0; i < mid; i++, ptr++);
     Vector3d p = GetSVGCoord(*ptr);
     out << " M " << p[0] - boxw << " " << p[2] - boxw;
     out << " L " << p[0] + boxw << " " << p[2] - boxw;
@@ -709,9 +708,12 @@ inline Quaternion rotation(Vector3d v1, Vector3d v2)
 }
 #endif
 
-bool SVGWriter::IsValid(const SVGWriter::Tab& tab) const {
+//check if a tab is collision free
+bool SVGWriter::IsValid(const SVGWriter::Tab& tab) const
+{
   //check intersections with all cut edges
-  for (int i = 0; i < this->model_->e_size; ++i) {
+  for (int i = 0; i < this->model_->e_size; ++i)
+  {
     const edge& e = this->model_->edges[i];
     if (e.type != 'b')
       continue; //not a cut edge
@@ -812,8 +814,11 @@ SVGWriter::Chamfer SVGWriter::BuildChamfer
   return chamfer;
 }
 
-SVGWriter::Tab SVGWriter::BuildTab(Vector3d& a, Vector3d& b, Vector3d& dir,
-    double len, uint eid) {
+//create a tab for a given edge, where a and b defines the edges
+//dir is perpendicular to ab and len the
+SVGWriter::Tab SVGWriter::BuildTab
+(Vector3d& a, Vector3d& b, Vector3d& dir,double len, uint eid)
+{
   if (dir.norm() < len) {
     dir = dir.normalize() * len;
   }
@@ -830,7 +835,8 @@ void SVGWriter::BuildTabs() {
   //this function build tabs only for hard-to fold boundary cut edges
   //const float tab_length=width_pixel_ * 0.05;
 
-  for (int i = 0; i < this->model_->e_size; ++i) {
+  for (int i = 0; i < this->model_->e_size; ++i)
+  {
     const edge& e = this->model_->edges[i];
     if (e.type != 'b')
       continue; //not a cut edge
@@ -841,32 +847,33 @@ void SVGWriter::BuildTabs() {
     assert(pe.type == 'b');           //make sure that we have the right parent
     assert(pe.parent_id == UINT_MAX); //make sure that we have the right parent
 
-
-
     //get triangles incident to the cut edges
     const triangle& t1 = model_->tris[e.fid.front()];
     Vector3d p1 = GetSVGCoord(e.vid[0]);
     Vector3d p2 = GetSVGCoord(e.vid[1]);
     Vector3d p3 = GetSVGCoord(otherv(t1, e));
 
+    //this is the opposite triangle, t2
+    const triangle& t2 = model_->tris[pe.fid.front()];
+    Vector3d p4 = GetSVGCoord(pe.vid[0]);
+    Vector3d p5 = GetSVGCoord(pe.vid[1]);
+    Vector3d p6 = GetSVGCoord(otherv(t2, pe));
+
+    //the vector along e
     auto v1 = (p2 - p1).normalize();
     if ((v1 % (p3 - p1).normalize())[1] < 0) {
       swap(p1, p2);
       v1 = -v1;
     }
 
-    const triangle& t2 = model_->tris[pe.fid.front()];
-    Vector3d p4 = GetSVGCoord(pe.vid[0]);
-    Vector3d p5 = GetSVGCoord(pe.vid[1]);
-    Vector3d p6 = GetSVGCoord(otherv(t2, pe));
-
-    //find rotation that will bring pe to e
+    //the vector along pe
     auto v2 = (p5 - p4).normalize();
     if ((v2 % (p6 - p4).normalize())[1] < 0) {
       swap(p4, p5);
       v2 = -v2;
     }
 
+    //find rotation that will bring pe (i.e, v2) to e (i.e., v1)
     //tab 1 is p1, m1, (p1+m1)/2+v2
     Vector3d m1 = (p1 + p2) / 2; //make a tab between p1 and m1
     Vector3d m2 = (p2 + m1) / 2;
@@ -877,49 +884,69 @@ void SVGWriter::BuildTabs() {
     Vector3d n2(-v2[2], 0, v2[0]);
 
     //build tabs for hard-to fold border cut
-    if (find(border_cut_eids_.begin(), border_cut_eids_.end(), i) != border_cut_eids_.end())
+    //if (find(border_cut_eids_.begin(), border_cut_eids_.end(), i) != border_cut_eids_.end())
+
+
+    double elen=(m1-p1).norm();
+    double tab_length1 = min(elen,fabs((p6 - p4)*n2.normalize()*0.9));
+    double tab_length2 = min(elen,fabs((p3 - p1)*n1.normalize()*0.9));
+    Tab tab1 = BuildTab(p1, p2, n1, tab_length1, i);
+    Tab tab2 = BuildTab(p4, p5, n2, tab_length2, e.parent_id); //pe id
+    if(tab_length2>tab_length1){ Tab tmp=tab2; tab2=tab1; tab1=tmp; } //swap
+
+    if (IsValid(tab1))
     {
-        double elen=(m1-p1).norm();
-        double tab_length1 = min(elen,fabs((p6 - p4)*n2.normalize()*0.9));
-        double tab_length2 = min(elen,fabs((p3 - p1)*n1.normalize()*0.9));
-        Tab tab1 = BuildTab(p1, p2, n1, tab_length1, i);
-        Tab tab2 = BuildTab(p4, p5, n2, tab_length2, e.parent_id);
-
-        if (IsValid(tab1))
-          tabs_[tab1.eid] = tab1;
-
-        else if (IsValid(tab2))
-          tabs_[tab2.eid] = tab2;
+      tabs_[tab1.eid] = tab1;
     }
-    else //zip edges
+    else if (IsValid(tab2))
     {
-      //double tab_length = (p1 - m1).norm()/2;
-      double elen=(m1-p1).norm();
-      double tab_length = min(elen,fabs((p3 - p1)*n1.normalize()*0.9));
-      Tab tab1 = BuildTab(p1, p2, n1, tab_length, i);
-      if (IsValid(tab1))
-        tabs_[tab1.eid] = tab1;
-      else
+      tabs_[tab2.eid] = tab2;
+    }
+    else //still failed...
+    {
+      //check if e and pe share a vertex...the tab will be different if they do
+      uint incident_vid=UINT_MAX;
+      if(e.vid[0]==pe.vid[0] || e.vid[0]==pe.vid[1]) incident_vid=e.vid[0];
+      else if(e.vid[1]==pe.vid[0] || e.vid[1]==pe.vid[1]) incident_vid=e.vid[1];
+
+      if(incident_vid!=UINT_MAX)
       {
-        //clip tab using p4, p5, p6
+        Vector3d px=(pe.vid[0]==incident_vid)?p5:p4; //the triangle p1,p2,px is the empty area
+        Tab tab;
+        tab.shape_.push_back(p1);
+        //tab.shape_.push_back(p1+(px-p1)*0.3+(p2-p1)*0.3);
+        tab.shape_.push_back(p2+(px-p2)*0.8);
+        tab.shape_.push_back(p2);
+        tab.eid=i;
+        if (IsValid(tab)) tabs_[tab.eid] = tab;
       }
     }
-
-  }    //end for i
+  }//end for i
 }
 
 //extra hints for connecting cut edges
-void SVGWriter::WriteTabs(ostream& out) {
+void SVGWriter::WriteTabs(ostream& out)
+{
+  const float boxw = width_pixel_ * 0.0025;
   out << "  <path class=\"tab\" d=\"";
 
   for (auto& t : tabs_) {
     auto& tab = t.second;
     const auto& start = tab.shape_.front();
+    Vector3d tc=start;
     out << " M " << start[0] << " " << start[2];
     for (auto it = ++tab.shape_.begin(); it != tab.shape_.end(); it++) {
       out << " L " << (*it)[0] << " " << (*it)[2];
+      tc=tc+*it;
     }
+    //compute tab center and draw a square?
+    tc=tc/tab.shape_.size();
     //out << " L " << start[0] << " " << start[2];
+    //draw a square around the tab center
+    out << " M " << tc[0] - boxw << " " << tc[2] - boxw;
+    out << " L " << tc[0] + boxw << " " << tc[2] + boxw;
+    out << " M " << tc[0] - boxw << " " << tc[2] + boxw;
+    out << " L " << tc[0] + boxw << " " << tc[2] - boxw;
   }
   out << "\" />" << endl;
 }

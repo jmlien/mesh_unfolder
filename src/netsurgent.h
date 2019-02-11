@@ -6,8 +6,6 @@ class Unfolder; //defined in unfolder.h
 
 namespace masc {
 
-//this is class that converts a net with overlaps into a
-//set of non-overlapping nets using set cover
 
 class NetSurgent
 {
@@ -19,6 +17,8 @@ public:
     virtual NetSet * apply(Net * net)=0;
 };
 
+//this is class that converts a net with overlaps into a
+//set of non-overlapping nets using set cover
 class SetCoverNetSurgent : public NetSurgent
 {
 public:
@@ -134,8 +134,38 @@ private:
 
   NetMatch getBestMatch(NetSet * netset, Net * n1, Net * n2);
 
+  void getMatches(NetSet * netset, Net * n1, Net * n2, vector<NetMatch>& matches);
+
   uint m_max_iterations;//max iterations allowed to improve the net
 
 };//end TopologicalNetSurgent
+
+
+
+//
+// using merge and split operators to reduce the number of non-overlapping nets
+//
+class BoxingNetSurgent : public NetSurgent
+{
+public:
+
+  BoxingNetSurgent(float width, float height);
+
+  //convert the net into a net set
+  virtual NetSet * apply(Net * net);
+
+private:
+
+  struct NetAABB{
+      Net * net;
+      Vector2d u, v; //directions
+      float w,h; //size
+  };
+
+  NetAABB computeAABB(Net * net);
+
+  float m_box_width, m_box_height; //width and height of the box
+
+};//end BoxingNetSurgent
 
 }//end namespace masc

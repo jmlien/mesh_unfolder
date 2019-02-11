@@ -46,6 +46,7 @@ enum class NetSurgery
   SET_COVER_SURGERY,      //split overlapping part of the nete into disjoint parts
   TOPOLOGICAL_SURGERY,    //extension of set cover that merges split nets using GA
   SUBDIVID_SURGERY,       //subdivid a triangle and rearrange sub-triangles to avoid overlap
+  BOXING_SURGERY,         //split a net into one or multiple boxes of given size
   CAGING_SURGERY          //ensure the net is contained in a polygonal container
 };
 
@@ -98,6 +99,9 @@ public:
     this->svg_valley_chamfer = false;
 
     this->svg_valley_chamfer_width_ratio = 1.0;
+
+    this->svg_boxing_width=13;
+    this->svg_boxing_height=13;
 
     this->no_tick = false;
 
@@ -257,6 +261,10 @@ public:
   // if so, the width of the chamger is related to folding angle
   bool svg_valley_chamfer;
   float svg_valley_chamfer_width_ratio;
+
+  //desired svg doc width and height
+  float svg_boxing_width;
+  float svg_boxing_height;
 
   // label font scale
   double label_font_scale;
