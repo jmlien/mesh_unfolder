@@ -74,7 +74,7 @@ public:
     const int getCurGeneration() const;
     const int getMaxGenerations() const;
 
-	bool isGoalAchieved() const { return m_goal_achieved; }
+	  bool isGoalAchieved() const { return m_goal_achieved; }
 
 protected:
 
@@ -125,14 +125,17 @@ protected:
     // stat
     clock_t m_start_time;
 
+    // number of generations the best inidividual survived
+    int m_generation_survived;
+
     // random generator
     Random m_random;
 
     // average fitness in each generation
-    vector<double> m_gen_avg_fitness;
+    //vector<double> m_gen_avg_fitness;
 
     // best fitness in each generation
-    vector<double> m_gen_best_fitness;
+    //vector<double> m_gen_best_fitness;
 };
 
 } /* namespace ga */

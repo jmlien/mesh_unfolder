@@ -672,7 +672,7 @@ istream& operator>>( istream& is, c_plylist& p)
     return is;
 }
 
-ostream& operator<<( ostream& os, c_ply& p)
+ostream& operator<<( ostream& os, const c_ply& p)
 {
     os<<p.getSize()<<" "<<((p.type==c_ply::PIN)?"in":"out")<<"\n";
     ply_vertex * ptr=p.head;
@@ -686,11 +686,10 @@ ostream& operator<<( ostream& os, c_ply& p)
     return os;
 }
 
-ostream& operator<<( ostream& out, c_plylist& p)
+ostream& operator<<( ostream& out, const c_plylist& p)
 {
     out<<p.size()<<"\n";
-    typedef c_plylist::iterator PIT;
-    for(PIT i=p.begin();i!=p.end();i++) out<<*i;
+    for(auto i=p.begin();i!=p.end();i++) out<<*i;
     return out;
 }
 

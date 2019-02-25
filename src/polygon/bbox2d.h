@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Point.h"
+#include "mathtool/Point.h"
 #include "polygon.h"
 #include <ostream>
 
-#define DEBUG 0 //to enable debugging output, change to 1 
+#define DEBUG 0 //to enable debugging output, change to 1
 
 namespace masc {
 namespace polygon {
@@ -13,6 +13,7 @@ namespace polygon {
   struct obb
   {
       obb(){ width=height=FLT_MAX; }
+      bool isValid() const { return width!=FLT_MAX && height!=FLT_MAX; }
       mathtool::Point2d corners[4];
       float width, height;
   };
@@ -91,7 +92,7 @@ namespace polygon {
   std::ostream & operator<<(std::ostream& out, const obb& box);
 
   //save to svg file
-  void saveSVG(string svg_filename, c_ply& ply, const obb& box);
+  //void saveSVG(string svg_filename, c_ply& ply, const obb& box);
 
 }//end namespace polygon
 }//end namespace masc

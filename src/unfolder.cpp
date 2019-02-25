@@ -342,8 +342,7 @@ void Unfolder::unfoldTo(const vector<double>& folding_angles) {
 
   vector<Matrix4x4> unfolding_matrax(m_m->t_size);
 
-  int c = 0;
-
+  //int c = 0;
   for (auto fid : m_ordered_face_list) {
 
     // no need to unfold base_face;
@@ -653,6 +652,33 @@ void Unfolder::shrink()
   }
 }
 
+//return the polygon representing the boundary of the net
+masc::polygon::c_ply Unfolder::findBoundaryPolyon()
+{
+    //SVGWriter writer(m, config);
+    if (m_net.v_size == 0) {
+      this->rebuildModel();
+    }
+
+    if(m_svg_writer.get()==NULL)
+      m_svg_writer.reset(new SVGWriter(&m_net, m_config));
+
+    vector<int> boundary;
+    m_svg_writer->FindBoundaryPolygon(&boundary);
+
+    //create netshadow
+    masc::polygon::c_ply ply(masc::polygon::c_ply::POUT);
+    ply.beginPoly();
+    for(auto& id : boundary)
+    {
+      Vector3d pos=m_svg_writer->GetSVGCoord(id);
+      ply.addVertex(pos[0],pos[2]);
+    }
+    ply.endPoly();
+
+    return ply;
+}
+
 void Unfolder::dumpObj(const string& path) const {
   cout << "- dumping obj to " << path << endl;
 
@@ -900,7 +926,9 @@ void Unfolder::dumpWeights(const string& path) const {
 }
 
 void Unfolder::dumpSVG(const std::string& path, ExportSVGType svg_type) {
-  if (m_net.v_size == 0) {
+
+  if (m_net.v_size == 0)
+  {
     this->rebuildModel();
   }
 
@@ -1609,8 +1637,9 @@ void Unfolder::initUnfold() {
     m_base_face_id = (int) (mathtool::drand48() * m_m->t_size);
   else if (this->m_config.baseface >= 0) {
     if (this->m_config.baseface >= this->m_m->t_size) {
-      std::cerr << "Error! base face out of range!" << endl;
-      exit(-1);
+      std::cerr << "! Warning: base face out of range! baseface="<<this->m_config.baseface<<", t size="<<this->m_m->t_size<< endl;
+      m_base_face_id = 0;
+      //exit(-1);
     }
     m_base_face_id = this->m_config.baseface;
   } else {
@@ -2271,6 +2300,7 @@ void Unfolder::rebuildModel() {
     cerr << "- Rebuilding model..." << endl;
 
   this->initUnfold();
+
   this->alignModel();
 
   // Step 0: unfold this to flat

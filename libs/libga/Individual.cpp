@@ -60,34 +60,39 @@ void Individual::reset() {
 
 }
 
-void Individual::mutate() {
+void Individual::mutate()
+{
+
   Random& random = this->m_species->getProblem()->getRandom();
 
-  for (int i = 0; i < this->m_genome_size; ++i) {
+  for (int i = 0; i < this->m_genome_size; ++i)
+  {
     if (random.nextDoubleUniform() > this->m_species->getMutationProb())
       continue;
 
     // mutation happens
-
     float mutated_gene = this->getGene(i);
 
-    switch (this->m_species->getMutationType()) {
-    case MutationType::RESET: {
-      mutated_gene = this->getRandomGene();
-      break;
-    }
-    case MutationType::GAUSSIAN: {
-      do {
-        mutated_gene = random.nextDoubleGuasian(this->getGene(i),
-            this->m_species->getMutationGaussianStddev());
-      } while (mutated_gene > this->m_species->getMaxGene()
-          || mutated_gene < this->m_species->getMinGene());
-      break;
-    }
-    default: {
-      assert(false);
-      break;
-    }
+    switch (this->m_species->getMutationType())
+    {
+      case MutationType::RESET:
+      {
+        mutated_gene = this->getRandomGene();
+        break;
+      }
+      case MutationType::GAUSSIAN:
+      {
+        do {
+          mutated_gene = random.nextDoubleGuasian(this->getGene(i), this->m_species->getMutationGaussianStddev());
+        } while (mutated_gene > this->m_species->getMaxGene() ||
+                 mutated_gene < this->m_species->getMinGene());
+
+        break;
+      }
+      default: {
+        assert(false);
+        break;
+      }
     }
 
     this->setGene(i, mutated_gene);
@@ -96,51 +101,56 @@ void Individual::mutate() {
   this->m_evaluated = false;
 }
 
-void Individual::crossover(Individual& ind, float crossover_prob) {
+void Individual::crossover(Individual& ind, float crossover_prob)
+{
   Random& random = this->m_species->getProblem()->getRandom();
   const auto chunk_size = this->m_species->getChunkSize();
 
-  switch (this->m_species->getCrossoverType()) {
-  case CrossoverType::ONE_POINT: {
-    // [0, genome_size-1]
-    int point = random.nextDoubleUniform() * (this->m_genome_size / chunk_size);
+  switch (this->m_species->getCrossoverType())
+  {
+    case CrossoverType::ONE_POINT:
+    {
+      // [0, genome_size-1]
+      int point = random.nextDoubleUniform() * (this->m_genome_size / chunk_size);
 
-    // swap [0~point] chunks
-    for (int x = 0; x < point * chunk_size; ++x) {
-      if (random.nextDoubleUniform() < crossover_prob)
-        swap(this->m_genome[x], ind.m_genome[x]);
+      // swap [0~point] chunks
+      for (int x = 0; x < point * chunk_size; ++x) {
+        if (random.nextDoubleUniform() < crossover_prob)
+          swap(this->m_genome[x], ind.m_genome[x]);
+      }
+
+      break;
     }
+    case CrossoverType::TWO_POINTS:
+    {
+      int point1 = random.nextDoubleUniform()
+          * (this->m_genome_size / chunk_size);
+      int point2 = random.nextDoubleUniform()
+          * (this->m_genome_size / chunk_size);
 
-    break;
-  }
-  case CrossoverType::TWO_POINTS: {
-    int point1 = random.nextDoubleUniform()
-        * (this->m_genome_size / chunk_size);
-    int point2 = random.nextDoubleUniform()
-        * (this->m_genome_size / chunk_size);
+      if (point1 > point2)
+        swap(point1, point2);
 
-    if (point1 > point2)
-      swap(point1, point2);
+      // swap [point1~point2] chunks
+      for (int x = point1 * chunk_size; x < point2 * chunk_size; ++x) {
+        if (random.nextDoubleUniform() < crossover_prob)
+          swap(this->m_genome[x], ind.m_genome[x]);
+      }
 
-    // swap [point1~point2] chunks
-    for (int x = point1 * chunk_size; x < point2 * chunk_size; ++x) {
-      if (random.nextDoubleUniform() < crossover_prob)
-        swap(this->m_genome[x], ind.m_genome[x]);
+      break;
     }
-
-    break;
-  }
-  case CrossoverType::UNIFORM: {
-    for (int x = 0; x < this->m_genome_size; ++x) {
-      if (random.nextDoubleUniform() < crossover_prob)
-        swap(this->m_genome[x], ind.m_genome[x]);
+    case CrossoverType::UNIFORM:
+    {
+      for (int x = 0; x < this->m_genome_size; ++x) {
+        if (random.nextDoubleUniform() < crossover_prob)
+          swap(this->m_genome[x], ind.m_genome[x]);
+      }
+      break;
     }
-    break;
-  }
-  default: {
-    assert(false);
-    break;
-  }
+    default: {
+      assert(false);
+      break;
+    }
   }
   // new individuals need to be evaluated
   this->m_evaluated = false;

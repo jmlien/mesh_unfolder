@@ -29,8 +29,10 @@ Problem::Problem() {
   this->m_population_size = 10;
   this->m_goal_achieved = false;
   this->m_start_time = 0;
+  this->m_generation_survived=0;
 
   this->m_best_ind.setFitness(-1e10);
+
 }
 
 Problem::~Problem() {
@@ -51,7 +53,7 @@ bool Problem::setup(const string& filename) {
   ifstream in;
   in.open(filename, ios_base::in);
   if (!in.good()) {
-    cerr << "- [GA] ! Error in Problem::setup. Can not open file = " << filename
+    cerr << "- [GA] ! Error in Problem::setup. Cannot open file = " << filename
          << endl;
     return false;
   }
@@ -147,13 +149,15 @@ void Problem::print(ostream& out) const
   out << endl;
 }
 
-void Problem::run() {
+void Problem::run()
+{
   m_start_time = clock();
 
   // generate initial population
   this->generatePopulation();
 
-  for (auto i = 1; i <= this->m_max_generateions; ++i) {
+  for (auto i = 1; i <= this->m_max_generateions; ++i)
+  {
     // breed children
     vector<Individual*> children = this->m_breeder->breed(this->m_population);
 
@@ -167,7 +171,7 @@ void Problem::run() {
     // callback
     this->generationDone(i);
 
-    if (m_goal_achieved)
+    if(this->m_goal_achieved)
       break;
   }
   cerr << endl;
@@ -179,7 +183,10 @@ void Problem::generationDone(int generation)
 
   if (gen_best->getFitness() > this->m_best_ind.getFitness()) {
     this->m_best_ind = *gen_best;
+    this->m_generation_survived=0;
   }
+
+  this->m_generation_survived++; //increase the number of survived generations
 
   auto avg_fitness = 0.0f;
 
@@ -195,11 +202,13 @@ void Problem::generationDone(int generation)
   cerr << std::fixed << std::setprecision(4);
 
   cerr << "- [GA]  generation = " << generation << ", time = " << time_in_sec
-       << " s, best = " << gen_best->getFitness() << ", avg = " << avg_fitness
-       << ", ";
+       << " s, best = " << gen_best->getFitness() << "("<<m_generation_survived
+       <<"), avg = " << avg_fitness<< ", "<<" m/c prob = "
+       <<getSpecies()->getMutationProb()<<"/"<<getSpecies()->getCrossoverProb();
+       //<<" cur="<<gen_best->getFitness();
 
-  this->m_gen_avg_fitness.push_back(avg_fitness);
-  this->m_gen_best_fitness.push_back(gen_best->getFitness());
+  //this->m_gen_avg_fitness.push_back(avg_fitness);
+  //this->m_gen_best_fitness.push_back(gen_best->getFitness());
 
   generationPrint(cerr, *gen_best);
 
@@ -215,7 +224,8 @@ Individual* Problem::generateIndividual() {
   return this->m_species->createNewIndvidual();
 }
 
-void Problem::mergePopulation(const vector<Individual*>& children) {
+void Problem::mergePopulation(const vector<Individual*>& children)
+{
   // sort the population based on fitness
   sort(this->m_population.begin(), this->m_population.end(),
       [](const Individual* a, const Individual* b) {
@@ -251,7 +261,8 @@ void Problem::generatePopulation()
   cout << "\n- [GA]  finished" << endl;
 }
 
-Individual* Problem::getBestIndividual() {
+Individual* Problem::getBestIndividual()
+{
   Individual* best = m_population[0];
 
   for (int i = 0; i < m_population.size(); ++i) {

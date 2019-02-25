@@ -68,8 +68,6 @@ void updateStatus() {
   glutSetWindowTitle(title.str().c_str());
 }
 
-void DisplayPolygon(polygon& p);
-
 void drawText(const char* text, const Vector3d& p) {
   glRasterPos3f(p[0], p[1], p[2]);
   for (int i = 0, size = strlen(text); i < size; i++) {
@@ -268,7 +266,7 @@ inline void DisplayModel(Unfolder& unfolder, bool randcolor = false) {
     //Draw facets
     glEnable( GL_POLYGON_OFFSET_FILL);
     glPolygonOffset(0.5f, 0.5f);
-    //for(list<polygon>::iterator i=M.polys.begin();i!=M.polys.end();i++)
+
     glBegin(GL_TRIANGLES);
     for (int i = 0; i < M->t_size; i++) {
       const triangle & t = M->tris[i];

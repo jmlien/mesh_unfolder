@@ -1,6 +1,6 @@
 #include "bbox2d.h"
 #include "chull.h"
-#include "simple_svg_1.0.0.hpp"
+//#include "simple_svg_1.0.0.hpp"
 
 namespace masc {
 namespace polygon {
@@ -69,7 +69,7 @@ obb bbox2d::build(bbox2d_problem & problem)
 #if DEBUG
     cout<<"box="<<box<<endl;
     sprintf(svg_filename, "%s%03d.svg", "DEBUG_",i);
-    saveSVG(svg_filename,m_chull_ply,box);
+    //saveSVG(svg_filename,m_chull_ply,box);
     //saveSVG(svg_filename,m_ply.front(),box);
 #endif
 
@@ -180,7 +180,7 @@ std::ostream & operator<<(std::ostream& out, const obb& box)
 }
 
 //function for saving svg file
-
+/*
 void ply2ply(const masc::polygon::c_ply& ply, svg::Polygon& poly)
 {
     auto v=ply.getHead();
@@ -201,6 +201,7 @@ void box2ply(const masc::polygon::obb& box, svg::Polygon& poly)
     poly << svg::Point(box.corners[3][0], box.corners[3][1]);
     poly.endBoundary();
 }
+
 
 void saveSVG(string svg_filename, masc::polygon::c_ply& ply, const masc::polygon::obb& box)
 {
@@ -230,5 +231,6 @@ void saveSVG(string svg_filename, masc::polygon::c_ply& ply, const masc::polygon
     doc.save();
     cout << "- Saved " << svg_filename << endl;
 }
+*/
 
 }}//end namespaces

@@ -1,6 +1,7 @@
 #include "netset.h"
 #include <cfloat>
 #include <climits>
+#include <unordered_set>
 
 class Unfolder; //defined in unfolder.h
 
@@ -30,7 +31,7 @@ public:
 
 protected:
 
-    NetSet * apply2(Net * net);
+    //NetSet * apply2(Net * net);
 
     struct LP_constraints
     {
@@ -156,13 +157,25 @@ public:
 
 private:
 
-  struct NetAABB{
-      Net * net;
-      Vector2d u, v; //directions
-      float w,h; //size
+  struct _NetSetCandidate
+  {
+    _NetSetCandidate(NetSet* _ns, Net * _net);
+    bool operator<(const _NetSetCandidate& other) const;
+    NetSet* ns; //ns must have only one invalid net that is larger than the given box
+    Net * invalid_net; //this is the invaild net
+    polygon::obb max_bbox;
+    list<uint> cut_edges;
+    uint eid;
   };
 
-  NetAABB computeAABB(Net * net);
+  bool valid(Net * net);
+
+  bool valid(NetSet * netset);
+
+  //each netset must only have one invalid net
+  Net * getInvalidNet(NetSet * netset);
+
+  unordered_set<Net*> m_valid_nets;
 
   float m_box_width, m_box_height; //width and height of the box
 

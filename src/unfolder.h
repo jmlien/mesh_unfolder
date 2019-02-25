@@ -25,12 +25,13 @@ using namespace std;
 #include "UnfoldingState.h"
 #include "util/TextureRenderer2D.h"
 #include "util/SVGWriter.h"
+#include "polygon/polygon.h"
 
 //the type MESH is defined in model.h as:
 //typedef vector<vector<pair<uint, Vector3d> > > MESH
 //representing faces[f_i][k] = <vid, coordinates> (k = 0..2)
 
-using namespace masc;
+//using namespace masc;
 using namespace masc::unfolding;
 using namespace masc::unfolding::util;
 
@@ -350,11 +351,18 @@ public:
   /// Get total cut length based on the selected_edges.
   float getTotalCutLength() const;
 
+	/// Build a convex hull of the unfolding...
+  /// Return the vertices of the hull.
+  vector<Vector3d> buildConvexHull2D() const;
+
   /// Get hull area
   float getHullArea() const;
 
 	//
 	const MESH & getUnfoldedMesh() const { return m_unfolded; }
+
+	//return the polygon representing the boundary of the net
+	masc::polygon::c_ply findBoundaryPolyon();
 
 private:
 
@@ -366,10 +374,6 @@ private:
 
   /// compute the MST on the dual graph
   void buildMST(GRAPH& g);
-
-  /// Build a convex hull of the unfolding...
-  /// Return the vertices of the hull.
-  vector<Vector3d> buildConvexHull2D() const;
 
   /// rebuild the tree rooted at base_face from selected edges
   /// return average path length
@@ -586,7 +590,7 @@ private:
   float m_min_edge_length;
 
   // different heuristics
-  std::unique_ptr<Splitter> m_spliiter;
+  std::unique_ptr<masc::Splitter> m_spliiter;
 
   // whether found a non-overlapping unfolding
   bool m_is_flattened;
@@ -595,7 +599,7 @@ private:
   int m_flat_edges;
 
   // for collision detection
-  CD* m_cd;
+  masc::CD* m_cd;
 
   // unfolding properties
   double m_avg_path_len;

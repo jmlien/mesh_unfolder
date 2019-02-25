@@ -149,6 +149,7 @@ void Net::unfold_subm()
     const bool * crease=unfolder->getSelectedEdges();
     this->m_subm_crease_lines=vector<bool>(crease,crease+m_subm->e_size);
 
+
     if(m_parents[0]==NULL)//no parents, overlaps are created in unfolder
     {
       auto & overlaps = unfolder->getOverlppingFacePairs();
@@ -198,6 +199,9 @@ void Net::unfold_subm()
        }
     }
 
+    //build polygonal boundary
+    this->m_boundary.clear();
+    this->m_boundary.push_back(unfolder->findBoundaryPolyon());
     delete unfolder;
 }
 

@@ -192,7 +192,7 @@ struct model {
   bool build(const std::string& name, bool quiet=false);
 
   //build from obj_model
-  bool build(const objModel& obj_model, bool quiet=false);
+  bool build(const masc::obj::objModel& obj_model, bool quiet=false);
 
   //build from vertices and faces
   bool build(const vector<Vector3d>& vertices,
@@ -283,6 +283,12 @@ struct model {
 
   // Save the model to an obj file.
   void saveObj(const string& path) const;
+
+  //make this model manifold if it is non-manifold
+  void makeManifold();
+
+  //split a non-manifold vertex into multiple vertices
+  void splitNonManifoldVertex(int old_vid);
 
   //data
   vector<vertex> vertices;  //vertices

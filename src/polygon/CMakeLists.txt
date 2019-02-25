@@ -7,6 +7,7 @@ set(LIB_SRC
     polygon.cpp
     polyline.cpp
     net_analyzer.cpp
+    bbox2d.cpp
 )
 
 include_directories(

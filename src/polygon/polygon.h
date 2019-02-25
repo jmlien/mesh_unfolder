@@ -198,8 +198,22 @@ public:
         if(h!=NULL){ tail=h->getPre(); }
         else{ tail=NULL; }
     }
+
     int getSize() {
         if(all.empty()) build_all();
+        return all.size();
+    }
+
+    int getSize() const {
+        if(all.empty()){
+          int size=0;
+          ply_vertex * ptr=head;
+          do{
+              size++;
+              ptr=ptr->getNext();
+          }while(ptr!=head); //end while
+          return size;
+        }
         return all.size();
     }
 
@@ -233,7 +247,7 @@ public:
     //check if give poly line is the same as this
     bool operator==(const c_ply& other ) const{ return other.head==head; }
     friend istream& operator>>( istream&, c_ply& );
-    friend ostream& operator<<( ostream&, c_ply& );
+    friend ostream& operator<<( ostream&, const c_ply& );
 
     bool canBeIgnored;
 
@@ -268,7 +282,7 @@ private:
 //a c_plylist is a list of c_ply
 class c_plylist : public list<c_ply>
 {
-    friend ostream& operator<<( ostream&, c_plylist& );
+    friend ostream& operator<<( ostream&, const c_plylist& );
     friend istream& operator>>( istream&, c_plylist& );
 
 public:

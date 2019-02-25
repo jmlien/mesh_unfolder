@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
-//  Copyright 2007-2008 by Jyh-Ming Lien and George Mason University
+//  Copyright 2007-2019 by Jyh-Ming Lien and George Mason University
 //  See the file "LICENSE" for more information
 //------------------------------------------------------------------------------
 
-#pragma once 
+#pragma once
 
 #include "polygon.h"
 
@@ -11,8 +11,8 @@ namespace masc{
 namespace polygon{
 
 ///////////////////////////////////////////////////////////////////////////////
-// This convex hull implemetation realizes the idea from 
-// A. Melkman, "On-line construction of the convex hull of a simple polygon", 
+// This convex hull implemetation realizes the idea from
+// A. Melkman, "On-line construction of the convex hull of a simple polygon",
 // Info. Proc. Letters 25, 11-12 (1987)
 ///////////////////////////////////////////////////////////////////////////////
 

@@ -4,6 +4,7 @@
 #include <deque>
 #include <glpk.h> //linear programming solver
 #include "util/DisjointSets.h"
+#include "polygon/bbox2d.h"
 
 namespace masc {
 
@@ -15,11 +16,8 @@ namespace masc {
 
 bool NetSurgent::operate(Unfolder* unfolder, vector<Unfolder*> & operated)
 {
-  if (unfolder->isFlattened()) return false; //no need to operate
-
   //get config
-  const Config& config = unfolder->getConfig();
-
+  const Config & config = unfolder->getConfig();
   //get model and creases to create a net
   //cout<<"create net"<<endl;
   model * m=unfolder->getModel();
@@ -33,7 +31,7 @@ bool NetSurgent::operate(Unfolder* unfolder, vector<Unfolder*> & operated)
   {
     case NetSurgery::SET_COVER_SURGERY: surgent=new SetCoverNetSurgent(); break;
     case NetSurgery::TOPOLOGICAL_SURGERY: surgent=new TopologicalNetSurgent(10); break;
-    case NetSurgery::CAGING_SURGERY: surgent=new BoxingNetSurgent(config.svg_boxing_width,config.svg_boxing_height); break;
+    case NetSurgery::BOXING_SURGERY: surgent=new BoxingNetSurgent(config.svg_boxing_width,config.svg_boxing_height); break;
     case NetSurgery::SUBDIVID_SURGERY:
     case NetSurgery::CAGING_SURGERY:
     default:
@@ -44,17 +42,27 @@ bool NetSurgent::operate(Unfolder* unfolder, vector<Unfolder*> & operated)
 
   //cout<<"surgent operates the net"<<endl;
   NetSet * netset = surgent->apply(net);
+  if(netset==NULL) return false;
+
   list<Net*> & nets=netset->getNets();
 
   //convert nets to a list of new unfolders
   //cout<<"convert nets to unfolders"<<endl;
   int cid=1;
+  Config _config;
+  _config.quite=true;
+  _config.output_file=config.output_file;
+  _config.filename=config.filename;
+  _config.texture_path=config.texture_path;
+
   for(Net* net: nets)
   {
-    Unfolder * tmp=net->toUnfolder(config);
+    Unfolder * tmp=net->toUnfolder(_config, true);
     tmp->setClusterId(cid++);
     operated.push_back(tmp);
   }
+
+//cout<<"net surgery done"<<endl;
 
   //done
   return true;
@@ -70,105 +78,105 @@ SetCoverNetSurgent::SetCoverNetSurgent()
 {
 
 }
-
-//convert the net into a net set
-NetSet * SetCoverNetSurgent::apply2(Net * net)
-{
-    //find all all_overlaps
-    set< pair<uint,uint> >  overlaps = net->getOverlaps();
-
-    cout<<"there are "<<overlaps.size()<<" overlaps"<<endl;
-
-    //find shortest paths (sequence of edges) connecting pairs of overlapping Triangles
-    unordered_map<uint, list<pair<uint,uint> > > e2tmap; //map< eid, pair<uint, uint>=<tid1, tid2> >
-    for(const pair<uint,uint>& overlap : overlaps)
-    {
-      list<uint> epath;
-      //cout<<"find path for "<<overlap.first<<","<<overlap.second<<": ";
-      //find path between overlap.first and overlap.second
-      this->find_path(net, overlap.first, overlap.second, epath);
-
-      for(uint e : epath)
-      {
-        e2tmap[e].push_back(overlap);
-      //  cout<<e<<", ";
-      }
-      // cout<<endl;
-    }
-
-    cout<<"finished finding all paths, e2tmap has size="<<e2tmap.size()<<endl;
-
-    //this might be slow
-    //for each edge, we maintain a list of overlapping pair
-    //greedily, we start from an edge with the largest number
-    //of un-resolved pairs
-    cout<<"solve set-cover problem"<<endl;
-    list<uint> new_cuts;
-    while(overlaps.empty()==false)
-    {
-      //find an edge with the largest cover
-      uint best_e;
-      uint best_size=0;
-      for(auto& tmp : e2tmap) //loop through each edge
-      {
-          uint eid = tmp.first;
-          const list<pair<uint,uint> >& conflicts = tmp.second;
-          //count the number of resolved pairs
-          int count=0;
-          for(const pair<uint,uint> & overlap : conflicts)
-          {
-            if(overlaps.find(overlap)!=overlaps.end()) count++;
-          }
-          //
-          if(count>best_size)
-          {
-            best_size=count;
-            best_e=eid;
-          }
-          else if(count==best_size) //resolve the same number of pairs
-          {
-            //pick one with shorter length
-            model * m = net->getOriginalModel();
-            edge & e1 = m->edges[best_e];
-            edge & e2 = m->edges[eid];
-            if(e2.length<e1.length)
-            {
-              best_e=eid;
-            }
-          }
-      }//end for tmp
-
-      //cout<<"best_e="<<best_e<<" best_size="<<best_size<<endl;
-
-      //found the best edge, remember it and remove all resolved pairs from overlaps
-      //cout<<"remove resolved overlaps"<<endl;
-      new_cuts.push_back(best_e);
-      for(const pair<uint,uint> & overlap : e2tmap[best_e])
-      {
-        overlaps.erase(overlap); //these overlaps have been resolved
-      }//end for overlap
-
-
-      //cout<<"remove best_e"<<endl;
-      e2tmap.erase(best_e); //remove best_e from the map
-
-      //cout<<"overlaps size="<<overlaps.size()<<endl;
-    }//end while
-
-    //cut the edges
-    //cout<<"cut nets"<<endl;
-    NetSet * netset = new NetSet(net);
-    for(uint eid : new_cuts)
-    {
-      //cout<<"cut edge "<<eid<<endl;
-      bool r = netset->split(eid);
-      if(!r) cerr<<"! Error: failed to cut edge "<<eid<<endl;
-      //break;
-    }
-
-    //cout<<"surgery done"<<endl;
-    return netset;
-}
+//
+// //convert the net into a net set
+// NetSet * SetCoverNetSurgent::apply2(Net * net)
+// {
+//     //find all all_overlaps
+//     set< pair<uint,uint> >  overlaps = net->getOverlaps();
+//
+//     cout<<"there are "<<overlaps.size()<<" overlaps"<<endl;
+//
+//     //find shortest paths (sequence of edges) connecting pairs of overlapping Triangles
+//     unordered_map<uint, list<pair<uint,uint> > > e2tmap; //map< eid, pair<uint, uint>=<tid1, tid2> >
+//     for(const pair<uint,uint>& overlap : overlaps)
+//     {
+//       list<uint> epath;
+//       //cout<<"find path for "<<overlap.first<<","<<overlap.second<<": ";
+//       //find path between overlap.first and overlap.second
+//       this->find_path(net, overlap.first, overlap.second, epath);
+//
+//       for(uint e : epath)
+//       {
+//         e2tmap[e].push_back(overlap);
+//       //  cout<<e<<", ";
+//       }
+//       // cout<<endl;
+//     }
+//
+//     cout<<"finished finding all paths, e2tmap has size="<<e2tmap.size()<<endl;
+//
+//     //this might be slow
+//     //for each edge, we maintain a list of overlapping pair
+//     //greedily, we start from an edge with the largest number
+//     //of un-resolved pairs
+//     cout<<"solve set-cover problem"<<endl;
+//     list<uint> new_cuts;
+//     while(overlaps.empty()==false)
+//     {
+//       //find an edge with the largest cover
+//       uint best_e;
+//       uint best_size=0;
+//       for(auto& tmp : e2tmap) //loop through each edge
+//       {
+//           uint eid = tmp.first;
+//           const list<pair<uint,uint> >& conflicts = tmp.second;
+//           //count the number of resolved pairs
+//           int count=0;
+//           for(const pair<uint,uint> & overlap : conflicts)
+//           {
+//             if(overlaps.find(overlap)!=overlaps.end()) count++;
+//           }
+//           //
+//           if(count>best_size)
+//           {
+//             best_size=count;
+//             best_e=eid;
+//           }
+//           else if(count==best_size) //resolve the same number of pairs
+//           {
+//             //pick one with shorter length
+//             model * m = net->getOriginalModel();
+//             edge & e1 = m->edges[best_e];
+//             edge & e2 = m->edges[eid];
+//             if(e2.length<e1.length)
+//             {
+//               best_e=eid;
+//             }
+//           }
+//       }//end for tmp
+//
+//       //cout<<"best_e="<<best_e<<" best_size="<<best_size<<endl;
+//
+//       //found the best edge, remember it and remove all resolved pairs from overlaps
+//       //cout<<"remove resolved overlaps"<<endl;
+//       new_cuts.push_back(best_e);
+//       for(const pair<uint,uint> & overlap : e2tmap[best_e])
+//       {
+//         overlaps.erase(overlap); //these overlaps have been resolved
+//       }//end for overlap
+//
+//
+//       //cout<<"remove best_e"<<endl;
+//       e2tmap.erase(best_e); //remove best_e from the map
+//
+//       //cout<<"overlaps size="<<overlaps.size()<<endl;
+//     }//end while
+//
+//     //cut the edges
+//     //cout<<"cut nets"<<endl;
+//     NetSet * netset = new NetSet(net);
+//     for(uint eid : new_cuts)
+//     {
+//       //cout<<"cut edge "<<eid<<endl;
+//       bool r = netset->split(eid);
+//       if(!r) cerr<<"! Error: failed to cut edge "<<eid<<endl;
+//       //break;
+//     }
+//
+//     //cout<<"surgery done"<<endl;
+//     return netset;
+// }
 
 
 //convert the net into a net set
@@ -176,6 +184,11 @@ NetSet * SetCoverNetSurgent::apply(Net * net)
 {
     //find all all_overlaps
     set< pair<uint,uint> >  overlaps = net->getOverlaps();
+
+    if(overlaps.size()==0){ //no overlaps, Done
+      cerr<<"! Warning: SetCoverNetSurgent::apply: net is already flattened."<<endl;
+      return NULL;
+    }
 
     //cout<<"there are "<<overlaps.size()<<" overlaps"<<endl;
 
@@ -205,8 +218,6 @@ NetSet * SetCoverNetSurgent::apply(Net * net)
     //cout<<"surgery done"<<endl;
     return netset;
 }
-
-
 
 //find a shortest path connecting f1 and f2
 //list<uint>& path contains a list of edges that the path passes through
@@ -791,7 +802,260 @@ BoxingNetSurgent::BoxingNetSurgent(float width, float height)
   m_box_height=height;
 }
 
-//
 
+//convert the net into a net set
+NetSet * BoxingNetSurgent::apply(Net * net)
+{
+
+  cout<<"- Apply BoxingNetSurgent"<<endl;
+
+  NetSet * netset = new NetSet(net);
+  polygon::contained_bbox problem(m_box_width, m_box_height);
+  //polygon::obb box=netset->getMaxOBB();
+
+  vector<_NetSetCandidate> open;
+  open.push_back(_NetSetCandidate(netset,net));
+  NetSet* solution=NULL;
+  list<uint> solution_cut_edges;
+  bool valid_net_found=false;
+
+  while(open.empty()==false)
+  {
+    _NetSetCandidate ns=open.front();
+    pop_heap(open.begin(),open.end());
+    open.pop_back();
+
+    //check if we find a solution
+    if(ns.invalid_net==NULL)
+    {
+      solution=ns.ns;
+      solution_cut_edges=ns.cut_edges;
+      break;
+    }
+
+    // {
+    //   auto poly=ns.invalid_net->getNetBoundary();
+    //   cout<<"polygon=\n"<<poly<<endl;
+    //   polygon::min_perimeter_bbox problem;
+    //   polygon::bbox2d solver(poly);
+    //   polygon::obb box = solver.build(problem);
+    //   cout<<"bbox="<<box<<endl;
+    // }
+
+    //
+    cout<<"- Open size = "<<open.size()<<", Solution "
+        <<((valid_net_found)?"found    ":"not found")
+        <<"\r"<<flush;
+    //cout<<"===GET 10 BEST============== open size="<<open.size()<<endl;
+    vector<_NetSetCandidate> open2;
+    //cout<<"netset size="<<ns.ns->getNets().size()<<endl;
+    for(uint eid : ns.invalid_net->getCreases())
+    {
+      //cout<<"-----------------------------"<<endl;
+      //cout<<"eid="<<eid<<endl;
+      pair<Net *, Net *> new_nets=ns.invalid_net->split(eid);
+
+      //sometime wrong, ignore the edge
+      if(new_nets.second==NULL) continue;
+
+      //nets are too small to be interesting
+      if(new_nets.first->getFaces().size()<ns.invalid_net->getFaces().size()/20 ||
+         new_nets.second->getFaces().size()<ns.invalid_net->getFaces().size()/20)
+      {
+        if(new_nets.first!=NULL) delete new_nets.first;
+        if(new_nets.second!=NULL) delete new_nets.second;
+        continue;
+      }
+
+      //cout<<"net 1 has "<<new_nets.first->getFaces().size()<<" faces"<<endl;
+      bool r1=valid(new_nets.first);
+      //cout<<"net 2 has "<<new_nets.second->getFaces().size()<<" faces"<<endl;
+      bool r2=valid(new_nets.second);
+
+      if( r1||r2 ) //one of the nets is valid
+      {
+        NetSet * new_ns=new NetSet(ns.ns);
+        //cout<<"new_ns->split(eid);"<<endl;
+        bool r=new_ns->split(eid);
+        //cout<<"new_ns->split(eid); DONE"<<endl;
+        if(!r)
+        {
+          cerr<<"! Warning: BoxingNetSurgent::apply: Split net set at "<<eid<<" failed"<<endl;
+          continue;
+          //delete new_ns;
+        }
+        else
+        {
+          _NetSetCandidate _nsc(new_ns,getInvalidNet(new_ns));
+          _nsc.eid=eid;
+          _nsc.cut_edges=ns.cut_edges;
+          _nsc.cut_edges.push_back(eid);
+          open2.push_back(_nsc);
+          push_heap(open2.begin(),open2.end());
+          if(_nsc.invalid_net==NULL) valid_net_found=true;
+          // {
+          //   cout<<"net size="<<new_ns->getNets().size()<<endl;;
+          //   cout<<"Found!!! open.size()="<<open.size()<<endl;
+          //   cout<<"root="<<open.front().invalid_net<<endl;
+          //   //exit(1);
+          // }
+        }
+      }
+      else //both too big
+      {
+        //delete new_nets.first;
+        //delete new_nets.second;
+      }
+    }//end for eid
+
+    for(int i=0;i<10;i++) //only keep 10 best and insert them to open
+    {
+      open.push_back(open2.front());
+      //if(open2.front().invalid_net!=NULL)
+      //cout<<"open2.front() area="<<open2.front().max_bbox.width*open2.front().max_bbox.height<<endl;
+      //cout<<"eid="<<open2.front().eid<<endl;
+      push_heap(open.begin(),open.end());
+      pop_heap(open2.begin(),open2.end());
+      open2.pop_back();
+      if(open2.empty()) break;
+    }
+
+    //done with this ns
+    //delete ns.ns;
+
+    //break;
+
+  }//end while
+
+  //release memory
+  // for(_NetSetCandidate& ns : open)
+  // {
+  //     delete ns.ns;
+  // }
+
+  // cout<<"cut edges=";
+  // for(uint eid : solution_cut_edges) cout<<eid<<" ";
+  // cout<<endl;
+
+  // {
+  //   solution = new NetSet(net);
+  //   cout<<"SPLIT 1="<<solution->split(solution_cut_edges.back())<<endl;
+  //   cout<<"SPLIT 2="<<solution->split(solution_cut_edges.front())<<endl;;
+  //   // for(uint eid : solution_cut_edges){
+  //   //   solution->split(eid);
+  //   //   //break;
+  //   // }
+  // }
+
+  // cout<<"orig net size="<<net->getFaces().size()<<endl;
+  // for(Net * net : solution->getNets())
+  // {
+  //     cout<<"solution net\n="<<net->getNetBoundary().front()<<endl;
+  // }
+  cout<<endl;
+  return solution;
+}
+
+BoxingNetSurgent::_NetSetCandidate::_NetSetCandidate(NetSet* _ns, Net * _net)
+{
+  ns=_ns;
+  invalid_net=_net;
+  if(invalid_net!=NULL)
+  {
+    const polygon::c_polygon & p=invalid_net->getNetBoundary();
+    polygon::min_perimeter_bbox problem;
+    polygon::bbox2d solver(p);
+    this->max_bbox = solver.build(problem);
+  }
+  else{
+    for(Net * net : ns->getNets())
+    {
+      const polygon::c_polygon & p=net->getNetBoundary();
+      polygon::min_perimeter_bbox problem;
+      polygon::bbox2d solver(p);
+      auto bbox=solver.build(problem);
+      if(max_bbox.isValid()==false) max_bbox=bbox;
+      else if(bbox.width+bbox.height>max_bbox.width+max_bbox.height)
+        max_bbox=bbox;
+    }//end net
+  }
+}
+
+//compare two netsets
+bool BoxingNetSurgent::_NetSetCandidate::operator<(const _NetSetCandidate& other) const
+{
+  //cout<<"WHATS???"<<endl;
+  if(this->ns->getNets().size()==other.ns->getNets().size())
+  {
+    if(this->invalid_net==NULL && other.invalid_net!=NULL) //this is a valid net
+    {
+      //cout<<"YESSSS"<<endl;
+      return false;
+    }
+
+    if(this->invalid_net!=NULL && other.invalid_net==NULL) //other is a valid net
+    {
+      //cout<<"NOOOOOO"<<endl;
+      return true;
+    }
+
+    //cout<<"YEAH!!!!!"<<endl;
+
+    //else (both null or both non-null)
+    auto& b1=this->max_bbox;
+    auto& b2=other.max_bbox;
+
+    return (b1.width+b1.height)>(b2.width+b2.height);
+  }
+
+  //cout<<"!!!!!!!!"<<endl;
+  return this->ns->getNets().size()>other.ns->getNets().size();
+}
+
+//
+bool BoxingNetSurgent::valid(Net * net)
+{
+  if(net==NULL) return false; //safe guard
+
+  polygon::contained_bbox problem(m_box_width, m_box_height);
+
+  if( m_valid_nets.find(net) == m_valid_nets.end() )
+  {
+    //compute the bounding box of the net and check if it is valid
+    //auto poly=net->getNetBoundary();
+    //cout<<"net polygon="<<poly<<endl;
+
+    polygon::bbox2d solver(net->getNetBoundary());
+    polygon::obb box = solver.build(problem);
+
+    //cout<<box <<", area="<<box.width*box.height<<endl;
+
+    //if not valid, return FALSE
+    //else save the net into the set
+    if(problem.solved(box))
+    {
+      m_valid_nets.insert(net);
+    }
+    else return false;
+  }
+
+  return true;
+}
+
+//
+bool BoxingNetSurgent::valid(NetSet * netset)
+{
+  for(Net * net : netset->getNets())
+    if(valid(net)==false) return false;
+  return true;
+}
+
+//each netset must only have one invalid net
+Net * BoxingNetSurgent::getInvalidNet(NetSet * netset)
+{
+  for(Net * net : netset->getNets())
+    if(valid(net)==false) return net;
+  return NULL;
+}
 
 }//end namespace masc

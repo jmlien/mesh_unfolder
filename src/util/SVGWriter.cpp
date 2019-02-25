@@ -644,7 +644,7 @@ void SVGWriter::WriteLabels(ostream & out)
     stringstream ss;
     ss << "<text x=\"" << center[0] << "\" y=\"" << center[2]
         << "\" fill=\"gold\" font-weight=\"bold\" font-size=\""
-        << this->font_size_ << "\">" << id << "</text>";
+        << this->font_size_ << "\">" << id << "</text>\n";
     out << ss.str() << endl;
   }
 

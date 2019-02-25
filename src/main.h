@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//  Copyright 2007-2008 by Jyh-Ming Lien and George Mason University
+//  Copyright 2007-2019 by Jyh-Ming Lien and George Mason University
 //  See the file "LICENSE" for more information
 //------------------------------------------------------------------------------
 
@@ -576,7 +576,7 @@ bool unfold()
     vector<Unfolder*> operated;
     for (auto unfolder : unfolders)
     {
-      bool r = NetSurgent::operate(unfolder, operated);
+      bool r = masc::NetSurgent::operate(unfolder, operated);
       if(r) delete unfolder; //no loger needed
       else operated.push_back(unfolder); //add the unoperated unfolding
     }

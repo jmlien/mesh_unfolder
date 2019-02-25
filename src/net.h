@@ -3,6 +3,7 @@
 //
 
 #include "model.h"
+#include "polygon/bbox2d.h"
 
 class Unfolder; //defined in unfolder.h
 struct Config;  //defined in config.h
@@ -31,6 +32,7 @@ public:
     const list<uint>& getFaces() const { return m_faces; }
     model * getOriginalModel(){ return m_orig; } //return the original model
     const set< pair<uint,uint> > & getOverlaps() { return m_overlap_pairs; }
+    const set<uint>& getCreases() const {return m_creases; }
 
     //check if a given eid is a crease edge
     //eid is original id in m_orig
@@ -45,6 +47,8 @@ public:
       // }
       // return m_subm_crease_lines[eid];
     }
+
+    const polygon::c_polygon & getNetBoundary() const { return m_boundary; }
 
 protected:
 
@@ -76,6 +80,9 @@ private:
     list<uint> m_faces;
     set<uint> m_creases;
     set< pair<uint,uint> > m_overlap_pairs; //pairs of overlapping faces
+
+    //boundary of this net
+    polygon::c_polygon m_boundary;
 };
 
 

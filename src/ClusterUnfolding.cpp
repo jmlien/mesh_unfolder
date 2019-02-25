@@ -1212,7 +1212,7 @@ namespace masc {
             //check if there is non-overlapping unfolding for this cluster
             //
             //model * m = m_unfolder->getModel();
-            objModel data;
+            masc::obj::objModel data;
 
             // UV coordinates
             bool has_uv= m->texture_pts.empty()==false;
@@ -1233,7 +1233,7 @@ namespace masc {
             uint new_vid = 0;
             for (auto & vid : vids)
             {
-                Vpt pt;
+                masc::obj::Vpt pt;
                 auto & pos = m->vertices[vid.first].p;
                 pt.x = pos[0];
                 pt.y = pos[1];
@@ -1247,7 +1247,7 @@ namespace masc {
             uint new_uv=0;
             for (auto & id : uvs)
             {
-              V uv;
+              masc::obj::V uv;
               auto & pos=m->texture_pts[id.first];
               uv.x = pos[0];
               uv.y = pos[1];
@@ -1258,7 +1258,7 @@ namespace masc {
             //get a list of faces
             for (auto fid : cluster.fids)
             {
-                polygon poly;
+                masc::obj::polygon poly;
                 for (short d = 0; d < 3; d++){
                     auto vid=vids[m->tris[fid].v[d]];
                     poly.pts.push_back(vid);

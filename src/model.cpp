@@ -7,10 +7,12 @@
 
 #include <string>
 #include <algorithm>
+#include <unordered_set>
 using namespace std;
 
 #include "ModelGraph.h"
 #include "mathtool/Geometry.h"
+#include "util/DisjointSets.h"
 
 #ifdef _WIN32
 #pragma warning(disable:4244)
@@ -18,13 +20,13 @@ using namespace std;
 
 //-----------------------------------------------------------------------------
 // two global scope models, P, Q
-model P, Q;
-model& getP() {
-  return P;
-}
-model& getQ() {
-  return Q;
-}
+// model P, Q;
+// model& getP() {
+//   return P;
+// }
+// model& getQ() {
+//   return Q;
+// }
 //-----------------------------------------------------------------------------
 
 //
@@ -37,12 +39,12 @@ model& getQ() {
 
 bool model::build(const string & name, bool quiet)
 {
-  MeshReader* reader = nullptr;
+  masc::obj::MeshReader* reader = nullptr;
 
   if (name.find(".obj") == name.length() - 4) {
-    reader = new objReader();
+    reader = new masc::obj::objReader();
   } else if (name.find(".off") == name.length() - 4) {
-    reader = new offReader();
+    reader = new masc::obj::offReader();
   }
 
   if (reader == nullptr) {
@@ -55,7 +57,7 @@ bool model::build(const string & name, bool quiet)
     return false;
   }
 
-  objModel& data = reader->getModel();
+  masc::obj::objModel& data = reader->getModel();
   this->texture_path = reader->GetTexturePath();
   this->material_path= reader->GetMaterialPath();
 
@@ -82,11 +84,11 @@ bool model::build(const vector<Vector3d>& vertices,
                   const vector<vector<int>>& faces,
                   bool quiet)
 {
-  objModel data(vertices, faces);
+  masc::obj::objModel data(vertices, faces);
   return this->build(data, quiet);
 }
 
-bool model::build(const objModel& data, bool quiet) {
+bool model::build(const masc::obj::objModel& data, bool quiet) {
 
   //allocate memory
   v_size = data.pts.size();
@@ -116,7 +118,7 @@ bool model::build(const objModel& data, bool quiet) {
 
   //copy triangles
   int tid = 0;
-  for (const polygon& poly : data.polys) {
+  for (const masc::obj::polygon& poly : data.polys) {
     const auto& ids = poly.pts;
     //check if triangle
     if (ids.size() != 3) {
@@ -955,6 +957,23 @@ void model::cutEdge(int eid_to_cut) {
     this->edges.push_back(new_edge);
     ++this->e_size;
 
+    // {
+    //   int vids[2]={vid1, vid2};
+    //   for(int i=0;i<2;i++)
+    //   {
+    //       auto& v=this->vertices[vids[i]];
+    //       //count the incident border edges
+    //       int count=0;
+    //       for(uint eid : v.m_e)
+    //       {
+    //         if(edges[eid].type == 'b') count++;
+    //       }
+    //
+    //       if(count>2) cout<<"!!! Case 1: Found a non-manifold vertex id="<< vids[i] <<endl;
+    //   }
+    //
+    // }
+
   } else if (this->isBorderVertex(vid1) ^ this->isBorderVertex(vid2)) {
     // case 2, one vertex is on the boundary
     // one vertex is on the boundary
@@ -966,6 +985,18 @@ void model::cutEdge(int eid_to_cut) {
     // Get the boundary vertex and the inner vertex
     int b_vid = this->isBorderVertex(vid1) ? vid1 : vid2;
     int i_vid = (b_vid == vid1) ? vid2 : vid1;
+
+    // if(b_vid==95)
+    // {
+    //   auto& v=this->vertices[b_vid];
+    //   cout<<"DEBUG: vid="<<b_vid<<" border edges: ";
+    //   //count the incident border edges
+    //   for(uint eid : v.m_e)
+    //   {
+    //     if(edges[eid].type == 'b') cout<<eid<<", ";
+    //   }
+    //   cout<<endl;
+    // }
 
     // boundary vertex
     vertex* b_vertex = &this->vertices[b_vid];
@@ -1066,6 +1097,42 @@ void model::cutEdge(int eid_to_cut) {
       last_r_eid = r_eid;
     }
 
+    // {
+    //   int vids[2]={new_vid,b_vid};
+    //   int bcount[2];
+    //
+    //   for(int i=0;i<2;i++)
+    //   {
+    //       auto& v=this->vertices[vids[i]];
+    //       //count the incident border edges
+    //       bcount[i]=0;
+    //       for(uint eid : v.m_e)
+    //       {
+    //         if(edges[eid].type == 'b') bcount[i]++;
+    //       }
+    //       //if(count>2) cout<<"!!! Case 2:  Found a non-manifold vertex id="<< vids[i]<<" i="<<i <<" count="<<count<<endl;
+    //   }
+    //
+    //   if(bcount[1]>2){
+    //     cout<<"!!! Case 2:  non-manifold b_vid="<<b_vid <<" count="<<bcount[1];
+    //     cout<<" new_vid="<<new_vid <<" count="<<bcount[0]<<endl;
+    //     cout<<" old_eid="<<old_eid<<" new_eid="<<new_eid<<endl;
+    //     for(int i=0;i<2;i++)
+    //     {
+    //         auto& v=this->vertices[vids[i]];
+    //         cout<<"vid="<<vids[i]<<" border edges: ";
+    //         //count the incident border edges
+    //         bcount[i]=0;
+    //         for(uint eid : v.m_e)
+    //         {
+    //           if(edges[eid].type == 'b') cout<<eid<<", ";
+    //         }
+    //         cout<<endl;
+    //         //if(count>2) cout<<"!!! Case 2:  Found a non-manifold vertex id="<< vids[i]<<" i="<<i <<" count="<<count<<endl;
+    //     }
+    //   }
+    //}
+
   } else {
     // case 3, both vertices are on the boundary, this should only happens when genus > 0 and for exact 2*genus times.
     //         or when the model is open
@@ -1142,6 +1209,24 @@ void model::cutEdge(int eid_to_cut) {
     old_edge = &this->edges[old_eid];
     old_edge->type = 'b'; // also become a boundary edge
     old_edge->fid = {(uint)fid1};
+
+    // {
+    //   int vids[4]={vid1,vid1p,vid2,vid2p};
+    //   for(int i=0;i<4;i++)
+    //   {
+    //       auto& v=this->vertices[vids[i]];
+    //       //count the incident border edges
+    //       int count=0;
+    //       for(uint eid : v.m_e)
+    //       {
+    //         if(edges[eid].type == 'b') count++;
+    //       }
+    //
+    //       if(count>2) cout<<"!!! Case 3: Found a non-manifold vertex id="<< vids[i] <<endl;
+    //   }
+    //
+    // }
+
   }
 
 }
@@ -1254,7 +1339,7 @@ void model::saveObj(const string& path) const {
 
 model * model::create_submodel(const list<uint> & fids)
 {
-    objModel data;
+    masc::obj::objModel data;
 
     // UV coordinates
     bool has_uv= this->texture_pts.empty()==false;
@@ -1277,7 +1362,7 @@ model * model::create_submodel(const list<uint> & fids)
     uint new_vid = 0;
     for (auto & vid : vids)
     {
-        Vpt pt;
+        masc::obj::Vpt pt;
         auto & pos = this->vertices[vid.first].p;
         pt.x = pos[0];
         pt.y = pos[1];
@@ -1290,7 +1375,7 @@ model * model::create_submodel(const list<uint> & fids)
     uint new_uv=0;
     for (auto & id : uvs)
     {
-      V uv;
+      masc::obj::V uv;
       auto & pos=this->texture_pts[id.first];
       uv.x = pos[0];
       uv.y = pos[1];
@@ -1301,7 +1386,7 @@ model * model::create_submodel(const list<uint> & fids)
     //get a list of faces
     for (auto& fid : fids)
     {
-        polygon poly;
+        masc::obj::polygon poly;
         for (short d = 0; d < 3; d++){
             auto vid=vids[this->tris[fid].v[d]];
             poly.pts.push_back(vid);
@@ -1323,6 +1408,9 @@ model * model::create_submodel(const list<uint> & fids)
         return NULL;
     }
 
+    //make sure that the built model is manifold
+    subm->makeManifold();
+
     // Path of the texture file.
     subm->texture_path =this->texture_path;
     subm->material_path=this->material_path;
@@ -1338,4 +1426,161 @@ model * model::create_submodel(const list<uint> & fids)
     }
 
     return subm;
+}
+
+//make this model manifold if it is non-manifold
+void model::makeManifold()
+{
+  list<int> nonmanifold_v;
+
+  //go through each vertex and check if it is non-manifold
+  for(int i=0;i<v_size;i++)
+  {
+    auto& v=vertices[i];
+    int count=0;
+    for(uint eid : v.m_e)
+    {
+      if(edges[eid].type == 'b') count++;
+    }
+    //this vertex is non-manifold...
+    //split the vertex
+    if(count>2)
+    {
+      nonmanifold_v.push_back(i);
+      //cout<<"V = "<<i<<" is non-manifold"<<endl;
+    }
+  }
+
+  //if(!nonmanifold_v.empty()) cout<<"Convert to manfold model"<<endl;
+  for(int old_vid : nonmanifold_v)
+  {
+    splitNonManifoldVertex(old_vid);
+  }//end for old_vid
+
+  // {
+  //   if(nonmanifold_v.empty()) return;
+  //   cout<<"DEBUG: Found manifold vertices"<<endl;
+  //   //go through each vertex and check if it is non-manifold
+  //   for(int i=0;i<v_size;i++)
+  //   {
+  //     auto& v=vertices[i];
+  //     int count=0;
+  //     for(uint eid : v.m_e)
+  //     {
+  //       if(edges[eid].type == 'b') count++;
+  //     }
+  //     //this vertex is non-manifold...
+  //     //split the vertex
+  //     if(count>2)
+  //     {
+  //       cout<<"V = "<<i<<" is still non-manifold"<<endl;
+  //     }
+  //   }
+  //   //exit(1);
+  // }
+
+}
+
+void model::splitNonManifoldVertex(int old_vid)
+{
+  auto& v=vertices[old_vid];
+
+  //find all faces incident to this vertex
+  //cout<<"find all faces incident to this vertex: v.m_f size="<<v.m_f.size()<<endl;
+  unordered_map<uint,uint> fidmap;
+  vector<uint> fids(v.m_f.begin(),v.m_f.end());
+  int fid=0;
+  for(uint id : v.m_f) fidmap[id]=fid++;
+
+  //group them into CC
+  //cout<<"group faces into CC"<<endl;
+  DisjointSets djs(fids.size());
+  for(uint eid : v.m_e )
+  {
+    auto& e = edges[eid];
+    if(e.type=='b') continue;
+    int root1=djs.find( fidmap[e.fid.front()] );
+    int root2=djs.find( fidmap[e.fid.back()] );
+    djs.unite(root1,root2);
+  }
+  //cout<<"djs.getNumSets()="<<djs.getNumSets()<<endl;
+  //each group has one new vertex and two border edges
+  //assert(djs.getNumSets()==count/2);
+
+  // //
+  // //cout<<"grouped_border_edges"<<endl;
+  // unordered_map< int,list<int> > grouped_border_edges;
+  // for(uint eid : v.m_e )
+  // {
+  //   auto& e = edges[eid];
+  //   if(e.type=='b')
+  //   {
+  //       int root=djs.find( fidmap[e.fid.front()] );
+  //       grouped_border_edges[root].push_back(eid);
+  //   }
+  // }//end eid
+  // assert(grouped_border_edges.size()==djs.getNumSets());
+
+  //group faces
+  //cout<<"group faces"<<endl;
+  unordered_map< int,list<int> > grouped_faces;
+  for(uint id : v.m_f){
+    int root=djs.find( fidmap[id] );
+    grouped_faces[root].push_back(id);
+  }
+  //cout<<"grouped_faces.size()="<<grouped_faces.size()<<endl;
+  assert(grouped_faces.size()==djs.getNumSets());
+
+  //create (count/2)-1 new vertice
+  //cout<<"cerate "<<grouped_faces.size()-1<<" vertices"<<endl;
+  vector<int> new_vertices;
+  v.m_f.clear();
+  v.m_e.clear();
+  new_vertices.push_back(old_vid);
+  for(int j=0;j<grouped_faces.size()-1;j++)
+  {
+    vertex nv=v;
+    nv.parent_id=old_vid;
+    new_vertices.push_back(this->v_size++);
+    this->vertices.push_back(nv);
+  }
+
+  int gid=0;
+  //cout<<"find faces and edges for each vertex"<<endl;
+  for(const auto & fgroup : grouped_faces)
+  {
+    int new_vid=new_vertices[gid];
+    //cout<<"handle v "<<new_vid<<endl;
+    vertex& v=this->vertices[new_vid];
+    v.m_f=list<uint>(fgroup.second.begin(),fgroup.second.end());
+    unordered_set<uint> v_m_e;
+    for(uint fid : v.m_f) //for each face in the group
+    {
+      auto & tri=tris[ fid ];
+
+      for(int k=0;k<3;k++) //replace the vertex of the face
+      {
+        if( tri.v[k]==old_vid )
+        {
+          tri.v[k]=new_vid;
+        }
+      }//end for k
+
+      for(int k=0;k<3;k++)
+      {
+        auto & e=edges[tri.e[k]];
+        if(e.vid[0]==old_vid || e.vid[1]==old_vid)
+        {
+          //v.m_e.push_back(tri.e[k]);
+          v_m_e.insert(tri.e[k]);
+          if(e.vid[0]==old_vid) e.vid[0]=new_vid;
+          else if(e.vid[1]==old_vid) e.vid[1]=new_vid;
+        }
+      }//end for k
+    }//end for fid
+
+    v.m_e=list<uint>(v_m_e.begin(),v_m_e.end());
+    //cout<<"v.m_e.size="<<v.m_e.size()<<endl;
+    gid++;
+  }//end for fgroup
 }
