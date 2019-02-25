@@ -49,11 +49,13 @@ bool NetSurgent::operate(Unfolder* unfolder, vector<Unfolder*> & operated)
   //convert nets to a list of new unfolders
   //cout<<"convert nets to unfolders"<<endl;
   int cid=1;
-  Config _config;
-  _config.quite=true;
-  _config.output_file=config.output_file;
-  _config.filename=config.filename;
-  _config.texture_path=config.texture_path;
+  Config _config=config;
+   _config.quite=true;
+   _config.baseface=-1;
+   _config.random_baseface = false;
+  // _config.output_file=config.output_file;
+  // _config.filename=config.filename;
+  // _config.texture_path=config.texture_path;
 
   for(Net* net: nets)
   {
@@ -809,12 +811,12 @@ NetSet * BoxingNetSurgent::apply(Net * net)
 
   cout<<"- Apply BoxingNetSurgent"<<endl;
 
-  NetSet * netset = new NetSet(net);
+  //NetSet * netset = new NetSet(net);
   polygon::contained_bbox problem(m_box_width, m_box_height);
   //polygon::obb box=netset->getMaxOBB();
 
   vector<_NetSetCandidate> open;
-  open.push_back(_NetSetCandidate(netset,net));
+  open.push_back(_NetSetCandidate(net));
   NetSet* solution=NULL;
   list<uint> solution_cut_edges;
   bool valid_net_found=false;
@@ -826,9 +828,9 @@ NetSet * BoxingNetSurgent::apply(Net * net)
     open.pop_back();
 
     //check if we find a solution
-    if(ns.invalid_net==NULL)
+    if(ns.invalid_net==NULL || ns.invalid_net->getFaces().size()<3)
     {
-      solution=ns.ns;
+      //solution=ns.ns;
       solution_cut_edges=ns.cut_edges;
       break;
     }
@@ -859,13 +861,13 @@ NetSet * BoxingNetSurgent::apply(Net * net)
       if(new_nets.second==NULL) continue;
 
       //nets are too small to be interesting
-      if(new_nets.first->getFaces().size()<ns.invalid_net->getFaces().size()/20 ||
-         new_nets.second->getFaces().size()<ns.invalid_net->getFaces().size()/20)
-      {
-        if(new_nets.first!=NULL) delete new_nets.first;
-        if(new_nets.second!=NULL) delete new_nets.second;
-        continue;
-      }
+      // if(new_nets.first->getFaces().size()<ns.invalid_net->getFaces().size()/10 ||
+      //    new_nets.second->getFaces().size()<ns.invalid_net->getFaces().size()/10)
+      // {
+      //   if(new_nets.first!=NULL) delete new_nets.first;
+      //   if(new_nets.second!=NULL) delete new_nets.second;
+      //   continue;
+      // }
 
       //cout<<"net 1 has "<<new_nets.first->getFaces().size()<<" faces"<<endl;
       bool r1=valid(new_nets.first);
@@ -874,32 +876,15 @@ NetSet * BoxingNetSurgent::apply(Net * net)
 
       if( r1||r2 ) //one of the nets is valid
       {
-        NetSet * new_ns=new NetSet(ns.ns);
-        //cout<<"new_ns->split(eid);"<<endl;
-        bool r=new_ns->split(eid);
-        //cout<<"new_ns->split(eid); DONE"<<endl;
-        if(!r)
-        {
-          cerr<<"! Warning: BoxingNetSurgent::apply: Split net set at "<<eid<<" failed"<<endl;
-          continue;
-          //delete new_ns;
-        }
-        else
-        {
-          _NetSetCandidate _nsc(new_ns,getInvalidNet(new_ns));
-          _nsc.eid=eid;
-          _nsc.cut_edges=ns.cut_edges;
-          _nsc.cut_edges.push_back(eid);
-          open2.push_back(_nsc);
-          push_heap(open2.begin(),open2.end());
-          if(_nsc.invalid_net==NULL) valid_net_found=true;
-          // {
-          //   cout<<"net size="<<new_ns->getNets().size()<<endl;;
-          //   cout<<"Found!!! open.size()="<<open.size()<<endl;
-          //   cout<<"root="<<open.front().invalid_net<<endl;
-          //   //exit(1);
-          // }
-        }
+        Net * invalid_net = (!r1)?new_nets.first:((!r2?new_nets.second:NULL));
+        _NetSetCandidate _nsc(invalid_net);
+        _nsc.eid=eid;
+        _nsc.cut_edges=ns.cut_edges;
+        _nsc.cut_edges.push_back(eid);
+        _nsc.net_size=ns.net_size+1;
+        open2.push_back(_nsc);
+        push_heap(open2.begin(),open2.end());
+        if(_nsc.invalid_net==NULL) valid_net_found=true;
       }
       else //both too big
       {
@@ -908,7 +893,7 @@ NetSet * BoxingNetSurgent::apply(Net * net)
       }
     }//end for eid
 
-    for(int i=0;i<10;i++) //only keep 10 best and insert them to open
+    for(int i=0;i<2;i++) //only keep 10 best and insert them to open
     {
       open.push_back(open2.front());
       //if(open2.front().invalid_net!=NULL)
@@ -937,15 +922,16 @@ NetSet * BoxingNetSurgent::apply(Net * net)
   // for(uint eid : solution_cut_edges) cout<<eid<<" ";
   // cout<<endl;
 
-  // {
-  //   solution = new NetSet(net);
-  //   cout<<"SPLIT 1="<<solution->split(solution_cut_edges.back())<<endl;
-  //   cout<<"SPLIT 2="<<solution->split(solution_cut_edges.front())<<endl;;
-  //   // for(uint eid : solution_cut_edges){
-  //   //   solution->split(eid);
-  //   //   //break;
-  //   // }
-  // }
+  if(!solution_cut_edges.empty())
+  {
+    solution = new NetSet(net);
+    //cout<<"SPLIT 1="<<solution->split(solution_cut_edges.back())<<endl;
+    //cout<<"SPLIT 2="<<solution->split(solution_cut_edges.front())<<endl;;
+    for(uint eid : solution_cut_edges){
+      solution->split(eid);
+      //break;
+    }
+  }
 
   // cout<<"orig net size="<<net->getFaces().size()<<endl;
   // for(Net * net : solution->getNets())
@@ -956,10 +942,10 @@ NetSet * BoxingNetSurgent::apply(Net * net)
   return solution;
 }
 
-BoxingNetSurgent::_NetSetCandidate::_NetSetCandidate(NetSet* _ns, Net * _net)
+BoxingNetSurgent::_NetSetCandidate::_NetSetCandidate(Net * _net)
 {
-  ns=_ns;
   invalid_net=_net;
+  net_size=1;
   if(invalid_net!=NULL)
   {
     const polygon::c_polygon & p=invalid_net->getNetBoundary();
@@ -967,38 +953,27 @@ BoxingNetSurgent::_NetSetCandidate::_NetSetCandidate(NetSet* _ns, Net * _net)
     polygon::bbox2d solver(p);
     this->max_bbox = solver.build(problem);
   }
-  else{
-    for(Net * net : ns->getNets())
-    {
-      const polygon::c_polygon & p=net->getNetBoundary();
-      polygon::min_perimeter_bbox problem;
-      polygon::bbox2d solver(p);
-      auto bbox=solver.build(problem);
-      if(max_bbox.isValid()==false) max_bbox=bbox;
-      else if(bbox.width+bbox.height>max_bbox.width+max_bbox.height)
-        max_bbox=bbox;
-    }//end net
-  }
 }
 
 //compare two netsets
 bool BoxingNetSurgent::_NetSetCandidate::operator<(const _NetSetCandidate& other) const
 {
   //cout<<"WHATS???"<<endl;
-  if(this->ns->getNets().size()==other.ns->getNets().size())
+  if(this->invalid_net==NULL && other.invalid_net!=NULL) //this is a valid net
   {
-    if(this->invalid_net==NULL && other.invalid_net!=NULL) //this is a valid net
-    {
-      //cout<<"YESSSS"<<endl;
-      return false;
-    }
+    //cout<<"YESSSS"<<endl;
+    return false;
+  }
 
-    if(this->invalid_net!=NULL && other.invalid_net==NULL) //other is a valid net
-    {
-      //cout<<"NOOOOOO"<<endl;
-      return true;
-    }
+  if(this->invalid_net!=NULL && other.invalid_net==NULL) //other is a valid net
+  {
+    //cout<<"NOOOOOO"<<endl;
+    return true;
+  }
 
+  //both nets are invalid
+  if(this->net_size==other.net_size)
+  {
     //cout<<"YEAH!!!!!"<<endl;
 
     //else (both null or both non-null)
@@ -1009,7 +984,7 @@ bool BoxingNetSurgent::_NetSetCandidate::operator<(const _NetSetCandidate& other
   }
 
   //cout<<"!!!!!!!!"<<endl;
-  return this->ns->getNets().size()>other.ns->getNets().size();
+  return this->net_size>other.net_size;
 }
 
 //

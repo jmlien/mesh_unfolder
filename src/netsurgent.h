@@ -159,13 +159,14 @@ private:
 
   struct _NetSetCandidate
   {
-    _NetSetCandidate(NetSet* _ns, Net * _net);
+    _NetSetCandidate(Net * _net);
     bool operator<(const _NetSetCandidate& other) const;
     NetSet* ns; //ns must have only one invalid net that is larger than the given box
     Net * invalid_net; //this is the invaild net
     polygon::obb max_bbox;
     list<uint> cut_edges;
     uint eid;
+    uint net_size;
   };
 
   bool valid(Net * net);
