@@ -935,12 +935,14 @@ void model::cutEdge(int eid_to_cut) {
     edge new_edge = old_edge;
     new_edge.type = 'b'; // new edge is a border edge
     new_edge.fid = {fid2};
-    new_edge.parent_id = old_eid;
+    new_edge.cut_twin_id = old_eid;
+
+    const uint new_edge_id = this->edges.size();
 
     old_edge.type = 'b'; // old edge becomes a border edge
     old_edge.fid = {fid1};
+    //old_edge.cut_twin_id = new_edge_id;
 
-    const uint new_edge_id = this->edges.size();
 
     // update f2's edge list
     for (int i = 0; i < 3; ++i)
@@ -1016,9 +1018,11 @@ void model::cutEdge(int eid_to_cut) {
 
     // Create a new vertex
     int new_vid = this->v_size;
-    vertex new_vertex;
-    new_vertex.p = b_vertex->p; // Same position.
-    new_vertex.parent_id = b_vid;
+    vertex new_vertex=*b_vertex;
+    //new_vertex.p = b_vertex->p; // Same position.
+    new_vertex.cut_src_id = b_vid;
+    new_vertex.m_f.clear();
+    new_vertex.m_e.clear();
 
     // Create a new edge
     int new_eid = this->e_size;
@@ -1027,10 +1031,11 @@ void model::cutEdge(int eid_to_cut) {
     new_edge.vid[0] = (old_edge.vid[0] == i_vid ? i_vid : new_vid);
     new_edge.vid[1] = (old_edge.vid[1] == i_vid ? i_vid : new_vid);
     new_edge.fid = {(uint)fid2};
-    new_edge.parent_id = old_eid;
+    new_edge.cut_twin_id = old_eid;
 
     old_edge.type = 'b'; // set old edge as boundary edge.
     old_edge.fid = {(uint)fid1}; // remove one face.
+    //old_edge.cut_twin_id = new_eid;
 
     new_vertex.m_e.push_back(new_eid);
     i_vertex->m_e.push_back(new_eid);
@@ -1159,13 +1164,18 @@ void model::cutEdge(int eid_to_cut) {
     int vid2p = this->v_size + 1;
 
     // create new vertices
-    vertex v1p;
-    vertex v2p;
+    vertex v1p=this->vertices[vid1];
+    vertex v2p=this->vertices[vid2];
 
-    v1p.p = this->vertices[vid1].p;
-    v2p.p = this->vertices[vid2].p;
-    v1p.parent_id = vid1;
-    v2p.parent_id = vid2;
+    //v1p.p = this->vertices[vid1].p;
+    v1p.cut_src_id = vid1;
+    v1p.m_f.clear();
+    v1p.m_e.clear();
+
+    //v2p.p = this->vertices[vid2].p;
+    v2p.cut_src_id = vid2;
+    v2p.m_f.clear();
+    v2p.m_e.clear();
 
     // create a new edge
     int new_eid = this->e_size;
@@ -1174,7 +1184,7 @@ void model::cutEdge(int eid_to_cut) {
     new_edge.vid[0] = vid1p;
     new_edge.vid[1] = vid2p;
     new_edge.fid = {(uint)fid2};
-    new_edge.parent_id = old_eid;
+    new_edge.cut_twin_id = old_eid;
 
     // Add new vertices to the model.
     this->vertices.push_back(v1p);
@@ -1408,15 +1418,15 @@ model * model::create_submodel(const list<uint> & fids)
         return NULL;
     }
 
-    //make sure that the built model is manifold
-    subm->makeManifold();
+    //remember the source~
+    subm->source=(this->source==NULL)?this:this->source;
 
     // Path of the texture file.
     subm->texture_path =this->texture_path;
     subm->material_path=this->material_path;
 
     //register
-    auto fid_it = fids.begin();
+    auto fid_it = fids.begin(); //register faces
     for (int fid = 0; fid < subm->t_size; fid++)
     {
         int sfid=*fid_it;
@@ -1424,6 +1434,30 @@ model * model::create_submodel(const list<uint> & fids)
         subm->tris[fid].source_fid = (ssfid==-1)?sfid:ssfid;
         ++fid_it;
     }
+
+    for (auto & vid : vids) //register vertices
+    {
+        subm->vertices[vid.second].source_vid=vid.first;
+    }
+
+    for (int eid = 0; eid < subm->e_size; eid++) //register edge
+    {
+        edge & sube=subm->edges[eid];
+
+        const vertex & subv1 = subm->vertices[sube.vid[0]];
+        const vertex & subv2 = subm->vertices[sube.vid[1]];
+        assert(subv1.source_vid!=UINT_MAX);
+        assert(subv2.source_vid!=UINT_MAX);
+
+        int source_eid=getEdgeId(subv1.source_vid,subv2.source_vid);
+        assert(source_eid!=-1);
+
+        sube.source_eid = (uint)source_eid;
+    }
+
+    //make sure that the built model is manifold
+    //this must be done last as new vertices and edges can be created
+    subm->makeManifold();
 
     return subm;
 }
@@ -1540,7 +1574,7 @@ void model::splitNonManifoldVertex(int old_vid)
   for(int j=0;j<grouped_faces.size()-1;j++)
   {
     vertex nv=v;
-    nv.parent_id=old_vid;
+    nv.cut_src_id=old_vid;
     new_vertices.push_back(this->v_size++);
     this->vertices.push_back(nv);
   }

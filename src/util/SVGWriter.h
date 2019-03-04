@@ -194,6 +194,10 @@ private:
   //tab related Methods
   void BuildTabs();
   Tab BuildTab(Vector3d& a, Vector3d& b, Vector3d& dir, double len, uint eid );
+  bool HasTab(uint eid) const //return true if a given edge has tab
+  {
+    return tabs_.find(eid)!=tabs_.end();
+  }
 
   //chamfer related Methods
   void BuildChamfers();
@@ -248,10 +252,10 @@ private:
     return UINT_MAX;
   }
 
-  inline uint getrootid(const model* model_, uint vid)
+  inline uint getrootvid(const model* model_, uint vid)
   {
-    while( model_->vertices[vid].parent_id != UINT_MAX)
-      vid=model_->vertices[vid].parent_id;
+    while( model_->vertices[vid].cut_src_id != UINT_MAX)
+      vid=model_->vertices[vid].cut_src_id;
     return vid;
   }
 

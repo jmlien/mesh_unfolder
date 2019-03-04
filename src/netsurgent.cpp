@@ -811,9 +811,13 @@ NetSet * BoxingNetSurgent::apply(Net * net)
 
   cout<<"- Apply BoxingNetSurgent"<<endl;
 
+  if(valid(net)) //check if the input net is valid
+  {
+    return new NetSet(net);
+  }
+
   //NetSet * netset = new NetSet(net);
   polygon::contained_bbox problem(m_box_width, m_box_height);
-  //polygon::obb box=netset->getMaxOBB();
 
   vector<_NetSetCandidate> open;
   open.push_back(_NetSetCandidate(net));
@@ -835,14 +839,14 @@ NetSet * BoxingNetSurgent::apply(Net * net)
       break;
     }
 
-    // {
-    //   auto poly=ns.invalid_net->getNetBoundary();
+    {
+      auto poly=ns.invalid_net->getNetBoundary();
     //   cout<<"polygon=\n"<<poly<<endl;
-    //   polygon::min_perimeter_bbox problem;
-    //   polygon::bbox2d solver(poly);
-    //   polygon::obb box = solver.build(problem);
-    //   cout<<"bbox="<<box<<endl;
-    // }
+      polygon::min_perimeter_bbox problem;
+      polygon::bbox2d solver(poly);
+      polygon::obb box = solver.build(problem);
+      cout<<"bbox="<<box<<endl;
+    }
 
     //
     cout<<"- Open size = "<<open.size()<<", Solution "
@@ -861,13 +865,13 @@ NetSet * BoxingNetSurgent::apply(Net * net)
       if(new_nets.second==NULL) continue;
 
       //nets are too small to be interesting
-      // if(new_nets.first->getFaces().size()<ns.invalid_net->getFaces().size()/10 ||
-      //    new_nets.second->getFaces().size()<ns.invalid_net->getFaces().size()/10)
-      // {
-      //   if(new_nets.first!=NULL) delete new_nets.first;
-      //   if(new_nets.second!=NULL) delete new_nets.second;
-      //   continue;
-      // }
+      if(new_nets.first->getFaces().size()<ns.invalid_net->getFaces().size()/10 ||
+         new_nets.second->getFaces().size()<ns.invalid_net->getFaces().size()/10)
+      {
+        if(new_nets.first!=NULL) delete new_nets.first;
+        if(new_nets.second!=NULL) delete new_nets.second;
+        continue;
+      }
 
       //cout<<"net 1 has "<<new_nets.first->getFaces().size()<<" faces"<<endl;
       bool r1=valid(new_nets.first);
@@ -1003,7 +1007,7 @@ bool BoxingNetSurgent::valid(Net * net)
     polygon::bbox2d solver(net->getNetBoundary());
     polygon::obb box = solver.build(problem);
 
-    //cout<<box <<", area="<<box.width*box.height<<endl;
+    //cout<<box<<endl;
 
     //if not valid, return FALSE
     //else save the net into the set

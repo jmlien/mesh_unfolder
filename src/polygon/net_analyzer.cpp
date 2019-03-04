@@ -116,7 +116,7 @@ namespace masc{
 					const edge& e = this->model_->edges[eid];
 					if (e.vid[0] == n_vid || e.vid[1] == n_vid)
 					{
-						v->getExtra().mesh_eid = (e.parent_id == UINT_MAX) ? eid : e.parent_id;
+						v->getExtra().mesh_eid = (e.cut_twin_id == UINT_MAX) ? eid : e.cut_twin_id;
 						break;
 					}
 				}//end for eid

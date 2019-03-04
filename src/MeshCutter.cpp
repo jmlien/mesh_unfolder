@@ -84,8 +84,8 @@ void SaveVertexMapping(const string& path, const model* model) {
   for (size_t vid = 0; vid < model->v_size; ++vid) {
     const vertex& v = model->vertices[vid];
     int pid = vid;
-    while (model->vertices[pid].parent_id != UINT_MAX) {
-      pid = model->vertices[pid].parent_id;
+    while (model->vertices[pid].cut_src_id != UINT_MAX) {
+      pid = model->vertices[pid].cut_src_id;
     }
     vertex_mapping[pid].push_back(vid);
   }

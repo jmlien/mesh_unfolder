@@ -95,7 +95,7 @@ struct vertex {
     concave = false;
     hyperbolic = false;
     score = 0.0;
-    parent_id=UINT_MAX;
+    cut_src_id=UINT_MAX;
   }
   Point3d p;  //position
   list<uint> m_f;
@@ -113,8 +113,13 @@ struct vertex {
   // weighted score
   float score;
 
-  //if this is a vertex created due to cut, store where this vertex is from
-  uint parent_id;
+  //if this is a vertex created due to cut,
+  //store where this vertex is from
+  uint cut_src_id;
+
+  //when this model is a sub-model created from a model
+  //this source_vid points to the id of the original vertex in the original model
+  uint source_vid;
 };
 
 //an edge of the model
@@ -126,13 +131,14 @@ struct edge {
     folding_angle = 0.0;
     cutted = true;
     diagonal = false;
-    parent_id=UINT_MAX;
+    cut_twin_id=UINT_MAX;
+    source_eid=UINT_MAX;
   }
 
   //given an incident face id (ofid)
   //return the other incident face id
   //only one id is returned if this is a non-manifold edge
-  uint otherf(uint ofid)
+  uint otherf(uint ofid) const
   {
     for(uint id : fid)
     {
@@ -160,12 +166,16 @@ struct edge {
   bool cutted;      // whether the edge is cut or not
   bool diagonal;    // whether the edge is a diagonal edge
 
-  uint parent_id;   //if this is a cut border edge, store where this edge is from
+  uint cut_twin_id;   //if this is a cut border edge, store where the twin of this cut edge
+
+  uint source_eid; //if this edge is created from another model, this points to the original eid
 };
 
 struct model {
+
   //initialization
-  model() {
+  model()
+  {
     v_size = e_size = t_size = vt_size = e_boundary_size = 0;
     //spheres=NULL;
     for (int i = 0; i < 3; i++)
@@ -176,6 +186,7 @@ struct model {
 
     surface_area = 0.0;
     total_edge_length = 0.0;
+    source=NULL;
   }
 
   ~model() {
@@ -343,7 +354,7 @@ struct model {
   vector<int> nid2eid;
 
   ////////////////////////////////////////////////////////////
-
+  model * source; //if this is a sub-model of another model, source points where this model is from
 };
 
 // {<fid1,fid2>}

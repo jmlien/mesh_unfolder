@@ -426,7 +426,9 @@ void SVGWriter::WriteCreasesInColor(ostream& out) {
   for (int i = 0; i < model_->e_size; ++i) {
     const edge& e = model_->edges[i];
     if (e.type == 'b' || fabs(e.folding_angle) <= 1e-3)
-      continue;
+    {
+      if(HasTab(i)==false) continue;
+    }
 
     string classname =
         e.folding_angle > 0 ? "m" : (e.folding_angle < 0 ? "v" : "n");
@@ -485,9 +487,9 @@ void SVGWriter::AnalyzeNet() {
   auto border_eids = netanalyzer.getBorderCutEdges();
   this->border_cut_eids_ = border_eids;
   for (int i = 0; i < model_->e_size; ++i) {
-    if (model_->edges[i].parent_id == UINT_MAX)
+    if (model_->edges[i].cut_twin_id == UINT_MAX)
       continue;
-    if (find(border_eids.begin(), border_eids.end(), model_->edges[i].parent_id)
+    if (find(border_eids.begin(), border_eids.end(), model_->edges[i].cut_twin_id)
         != border_eids.end()) {
       this->border_cut_eids_.push_back(i);
     }
@@ -549,14 +551,14 @@ void SVGWriter::WriteCutEdgeHints(ostream& out) {
     const edge& e = model_->edges[i];
     if (e.type != 'b')
       continue; //not a cut edge
-    if (e.parent_id == UINT_MAX)
+    if (e.cut_twin_id == UINT_MAX)
       continue; //no parent ID defined
-    if (find(zip_line_eids_.begin(), zip_line_eids_.end(), e.parent_id)
+    if (find(zip_line_eids_.begin(), zip_line_eids_.end(), e.cut_twin_id)
         != zip_line_eids_.end())
       continue; //this edge is a zip line edge
-    const edge& pe = model_->edges[e.parent_id]; //parent edge
+    const edge& pe = model_->edges[e.cut_twin_id]; //parent edge
     assert(pe.type == 'b');           //make sure that we have the right parent
-    assert(pe.parent_id == UINT_MAX); //make sure that we have the right parent
+    assert(pe.cut_twin_id == UINT_MAX); //make sure that we have the right parent
 
     const triangle& t1 = model_->tris[e.fid.front()];
     Vector3d p1 = GetSVGCoord(e.vid[0]);
@@ -574,10 +576,10 @@ void SVGWriter::WriteCutEdgeHints(ostream& out) {
     auto& pe_vid1 = model_->vertices[pe.vid[0]];
     auto& pe_vid2 = model_->vertices[pe.vid[1]];
 
-    uint evid1_id = getrootid(model_, e.vid[0]); //(e_vid1.parent_id==UINT_MAX)?e.vid[0]:e_vid1.parent_id;
-    uint evid2_id = getrootid(model_, e.vid[1]); //(e_vid2.parent_id==UINT_MAX)?e.vid[1]:e_vid2.parent_id;
-    uint pevid1_id = getrootid(model_, pe.vid[0]); //(pe_vid1.parent_id==UINT_MAX)?pe.vid[0]:pe_vid1.parent_id;
-    uint pevid2_id = getrootid(model_, pe.vid[1]); //(pe_vid2.parent_id==UINT_MAX)?pe.vid[1]:pe_vid2.parent_id;
+    uint evid1_id  = getrootvid(model_, e.vid[0]);
+    uint evid2_id  = getrootvid(model_, e.vid[1]);
+    uint pevid1_id = getrootvid(model_, pe.vid[0]);
+    uint pevid2_id = getrootvid(model_, pe.vid[1]);
 
     if (evid1_id == pevid2_id && evid2_id == pevid1_id) {
       swap(p4, p5);
@@ -631,7 +633,6 @@ void SVGWriter::WriteCutEdgeHints(ostream& out) {
 
 void SVGWriter::WriteLabels(ostream & out)
 {
-
   //face id
   for (int i = 0; i < this->model_->t_size; ++i)
   {
@@ -657,7 +658,10 @@ void SVGWriter::WriteLabels(ostream & out)
      continue; //not a cut edge
 #endif
 
-    int id = (e.parent_id == UINT_MAX) ? i : e.parent_id; //find the original id of this edge
+    //int id = (e.cut_twin_id == UINT_MAX) ? i : e.cut_twin_id;
+    int id = (e.source_eid == UINT_MAX) ? i : e.source_eid;
+
+    //find the original id of this edge
     const triangle& t = model_->tris[e.fid.front()];
 
     Vector3d p0 = GetSVGCoord(e.vid[0]);
@@ -683,10 +687,6 @@ void SVGWriter::WriteLabels(ostream & out)
         << center[2]
         << ")\" fill=\"darkgreen\" font-weight=\"bold\" font-size=\""
         << this->font_size_ << "\">" << id << "</text>";
-    //  sprintf(text_buf,
-    //      "<text x=\"%f\" y=\"%f\" transform=\"rotate(%f %f %f)\" fill=\"darkgreen\" font-weight=\"bold\" font-size=\"%f\">%d</text>",
-    //      center[0], center[2],   // x, y
-    //      angle, center[0], center[2], font_size, id);
 
     out << ss.str() << endl;
 
@@ -748,7 +748,6 @@ void SVGWriter::BuildChamfers()
     {
       const edge& e = this->model_->edges[i];
       //if (e.folding_angle >=0 || e.type == 'b') continue; //not a valley
-      //if (e.parent_id == UINT_MAX) continue; //no parent ID defined
 
       if (e.type == 'b' || e.folding_angle >=0 ) continue; //a cut edge
 
@@ -838,14 +837,62 @@ void SVGWriter::BuildTabs() {
   for (int i = 0; i < this->model_->e_size; ++i)
   {
     const edge& e = this->model_->edges[i];
+
     if (e.type != 'b')
       continue; //not a cut edge
-    if (e.parent_id == UINT_MAX)
-      continue; //no parent ID defined
 
-    const edge& pe = model_->edges[e.parent_id]; //parent edge
-    assert(pe.type == 'b');           //make sure that we have the right parent
-    assert(pe.parent_id == UINT_MAX); //make sure that we have the right parent
+    if (e.cut_twin_id == UINT_MAX) //no twin ID defined
+    {
+      model * src_m = this->model_->source;
+      if(src_m==NULL) //no source model
+        continue;
+      else
+      {
+        //we may still build a tab if we cannot find the twin edge1
+        //as this edge might be cut by net surgent
+        const edge & src_e = src_m->edges[e.source_eid];
+        const triangle & e_incident_tri = this->model_->tris[e.fid.front()];
+        uint src_fid=e_incident_tri.source_fid;
+        uint src_other_fid = src_e.otherf(src_fid);
+        if(src_other_fid==UINT_MAX ) continue; //no other f... so e is not a cut edge
+        if(src_other_fid>src_fid ) continue; //avoid building tabs on both edges
+
+        //build the tab around this edge
+        //get triangles incident to the cut edges
+        const triangle& t1 = model_->tris[e.fid.front()];
+        Vector3d p1 = GetSVGCoord(e.vid[0]);
+        Vector3d p2 = GetSVGCoord(e.vid[1]);
+        Vector3d p3 = GetSVGCoord(otherv(t1, e));
+        //the vector along e
+        auto v1 = (p2 - p1).normalize();
+        if ((v1 % (p3 - p1).normalize())[1] < 0) {
+          swap(p1, p2);
+          v1 = -v1;
+        }
+        //find rotation that will bring pe (i.e, v2) to e (i.e., v1)
+        //tab 1 is p1, m1, (p1+m1)/2+v2
+
+        Vector3d m1 = (p1 + p2) / 2; //make a tab between p1 and m1
+        //Vector3d m2 = (p2 + m1) / 2;
+
+        Vector3d n1(-v1[2], 0, v1[0]);
+        double elen=(m1-p1).norm();
+        //double tab_length1 = min(elen,fabs((p6 - p4)*n2.normalize()*0.9));
+        double tab_length = min(elen,fabs((p3 - p1)*n1.normalize()*0.9));
+        Tab tab = BuildTab(p1, p2, n1, tab_length, i);
+
+        if (IsValid(tab))
+        {
+          tabs_[tab.eid] = tab;
+        }
+
+        continue;
+      }
+    }
+
+    const edge& pe = model_->edges[e.cut_twin_id]; //cut twin edge
+    assert(pe.type == 'b');           //make sure that we have the right edge
+    assert(pe.cut_twin_id == UINT_MAX); //make sure that we have the right edge
 
     //get triangles incident to the cut edges
     const triangle& t1 = model_->tris[e.fid.front()];
@@ -891,7 +938,7 @@ void SVGWriter::BuildTabs() {
     double tab_length1 = min(elen,fabs((p6 - p4)*n2.normalize()*0.9));
     double tab_length2 = min(elen,fabs((p3 - p1)*n1.normalize()*0.9));
     Tab tab1 = BuildTab(p1, p2, n1, tab_length1, i);
-    Tab tab2 = BuildTab(p4, p5, n2, tab_length2, e.parent_id); //pe id
+    Tab tab2 = BuildTab(p4, p5, n2, tab_length2, e.cut_twin_id); //pe id
     if(tab_length2>tab_length1){ Tab tmp=tab2; tab2=tab1; tab1=tmp; } //swap
 
     if (IsValid(tab1))

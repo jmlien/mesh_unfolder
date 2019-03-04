@@ -47,15 +47,15 @@ namespace masc {
 
                 unordered_map< uint, vector<uint> > v_share_parents;
                 for(uint i = 0; i < vertices.size(); i++) {
-                    uint p_id = vertices[i].parent_id;
+                    uint p_id = vertices[i].cut_src_id;
                     //cout << "pid = " << p_id <<endl;
-                    while(p_id != v_default.parent_id &&
-                          vertices[p_id].parent_id != v_default.parent_id) {
+                    while(p_id != v_default.cut_src_id &&
+                          vertices[p_id].cut_src_id != v_default.cut_src_id) {
 
-                        p_id = vertices[p_id].parent_id;
+                        p_id = vertices[p_id].cut_src_id;
                     }
 
-                    if(p_id != v_default.parent_id) {
+                    if(p_id != v_default.cut_src_id) {
                         v_share_parents[p_id].push_back(i);
                     }
 
@@ -428,7 +428,7 @@ namespace masc {
                 return (total_selected_edge_length - min_cut_length)
                     / (max_cut_length - min_cut_length);
             }
-            
+
             /*
 
             void UnfolderHelper::dumpStats(std::ostream & out){
@@ -532,17 +532,17 @@ namespace masc {
             }
 */
             void UnfolderHelper::dumpStats(std::ostream & out){
-                
+
                 this->m_unfolder->rebuildModel();
-                
+
                 int num_leaf_nodes=0;
                 int num_1_degree_nodes=0;
                 int num_2_degree_nodes=0;
                 int num_3_degree_nodes=0;
                 int total_degrees=0;
-                
+
                 for (int i = 0; i < this->m_num_children.size(); i++) {
-                    
+
                     switch(this->m_num_children[i]) {
                         case 0: num_leaf_nodes++; break;
                         case 1: num_1_degree_nodes++; break;
@@ -550,7 +550,7 @@ namespace masc {
                         case 3: num_3_degree_nodes++; break;
                     }
                     total_degrees += this->m_num_children[i];
-                    
+
                 }
                 out << "w_cutlength " << this->getTotalCutLengthNormalized() << endl;
                 out << "w_num_leaf_nodes    " <<  (double) num_leaf_nodes / (double)total_degrees << endl;
@@ -558,10 +558,10 @@ namespace masc {
                 out << "w_num_2_degree_nodes    " << (double) num_2_degree_nodes / (double)total_degrees << endl;
                 out << "w_border_cuts   " << (double)this->computeBorderCutsLength() / (double)this->getTotalCutLength() << endl;
                 out << "w_hullarea   " << this->m_unfolder->getModel()->surface_area / this->m_unfolder->getHullArea() << endl;
-                
+
             }
-            
-            
+
+
             void UnfolderHelper::dumpStats(const std::string& path) {
                 std::cout << "- dumping stats to "<< path << std::endl;
 

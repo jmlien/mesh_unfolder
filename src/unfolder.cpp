@@ -1000,7 +1000,6 @@ void Unfolder::dumpOri(const string& path) const {
     // coordinates
 
     out << "3 " << f.v[0] << " " << f.v[1] << " " << f.v[2] << " ";
-    // parent_id, crease_id
     out << m_parents[fid] << " " << f2c[fid] << endl;
   }
 
