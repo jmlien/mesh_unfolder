@@ -302,7 +302,7 @@ protected:
 		//use PCA to find relational scale
 		Mat_<V> P; Mat(a).reshape(1, a.size()).copyTo(P);
 		Mat_<V> Q; Mat(b).reshape(1, b.size()).copyTo(Q);
-		PCA a_pca(P, Mat(), CV_PCA_DATA_AS_ROW), b_pca(Q, Mat(), CV_PCA_DATA_AS_ROW);
+		PCA a_pca(P, Mat(), PCA::DATA_AS_ROW), b_pca(Q, Mat(), PCA::DATA_AS_ROW);
 		double s = sqrt(b_pca.eigenvalues.at<V>(0)) / sqrt(a_pca.eigenvalues.at<V>(0));
 
 		if (s != s)

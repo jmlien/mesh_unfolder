@@ -839,14 +839,14 @@ NetSet * BoxingNetSurgent::apply(Net * net)
       break;
     }
 
-    {
-      auto poly=ns.invalid_net->getNetBoundary();
-    //   cout<<"polygon=\n"<<poly<<endl;
-      polygon::min_perimeter_bbox problem;
-      polygon::bbox2d solver(poly);
-      polygon::obb box = solver.build(problem);
-      cout<<"bbox="<<box<<endl;
-    }
+    // {
+    //   auto poly=ns.invalid_net->getNetBoundary();
+    // //   cout<<"polygon=\n"<<poly<<endl;
+    //   polygon::min_perimeter_bbox problem;
+    //   polygon::bbox2d solver(poly);
+    //   polygon::obb box = solver.build(problem);
+    //   cout<<"bbox="<<box<<endl;
+    // }
 
     //
     cout<<"- Open size = "<<open.size()<<", Solution "
@@ -928,13 +928,16 @@ NetSet * BoxingNetSurgent::apply(Net * net)
 
   if(!solution_cut_edges.empty())
   {
+    cout<<"- BoxingNetSurgent splits the net at edges: ";
     solution = new NetSet(net);
     //cout<<"SPLIT 1="<<solution->split(solution_cut_edges.back())<<endl;
     //cout<<"SPLIT 2="<<solution->split(solution_cut_edges.front())<<endl;;
     for(uint eid : solution_cut_edges){
+      cout<<eid<<",";
       solution->split(eid);
       //break;
     }
+    cout<<endl;
   }
 
   // cout<<"orig net size="<<net->getFaces().size()<<endl;

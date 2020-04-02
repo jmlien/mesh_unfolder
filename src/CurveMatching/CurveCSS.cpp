@@ -359,7 +359,7 @@ vector<int> ComputeCSSImageMaximas(const vector<double>& contourx_, const vector
 
 							maximas[idx] = (maximas[idx] < sigma) ? sigma : maximas[idx];
 
-							circle(img, Point(idx,i), 1, Scalar(0,0,255), CV_FILLED);
+							circle(img, Point(idx,i), 1, Scalar(0,0,255), FILLED);
 						}
 					}
 				}

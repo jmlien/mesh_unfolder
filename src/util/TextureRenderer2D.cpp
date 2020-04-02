@@ -26,7 +26,7 @@ TextureRenderer2D::TextureRenderer2D(const std::string& texture_path) :
   std::cerr << "- [TextureRenderer2D::TextureRenderer2D] Reading texture from "
       << texture_path << std::endl;
 
-  cv::Mat tmp = cv::imread(m_texture_path, CV_LOAD_IMAGE_COLOR);
+  cv::Mat tmp = cv::imread(m_texture_path, cv::IMREAD_COLOR);
   cv::flip(tmp, m_texture, 0); //vertical flip texture as openGL's UV origin is at lower left...
   m_texture_width = m_texture.cols;
   m_texture_height = m_texture.rows;
@@ -36,7 +36,7 @@ TextureRenderer2D::TextureRenderer2D(const std::string& texture_path) :
 
   assert(m_texture_width > 0 && m_texture_height > 0);
 
-  cv::cvtColor(m_texture, m_texture, CV_BGR2BGRA);
+  cv::cvtColor(m_texture, m_texture, cv::COLOR_BGR2BGRA);
 }
 
 TextureRenderer2D::~TextureRenderer2D() {

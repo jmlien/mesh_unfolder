@@ -240,7 +240,7 @@ protected:
 		//use PCA to find relational scale
 		cv::Mat_<V> P; cv::Mat(a).reshape(1, a.size()).copyTo(P);
 		cv::Mat_<V> Q; cv::Mat(b).reshape(1, b.size()).copyTo(Q);
-		PCA a_pca(P, cv::Mat(), CV_PCA_DATA_AS_ROW), b_pca(Q, cv::Mat(), CV_PCA_DATA_AS_ROW);
+		PCA a_pca(P, cv::Mat(), PCA::DATA_AS_ROW), b_pca(Q, cv::Mat(), PCA::DATA_AS_ROW);
 
 		//disable scaling
 		double s = 1; // sqrt(b_pca.eigenvalues.at<V>(0)) / sqrt(a_pca.eigenvalues.at<V>(0));

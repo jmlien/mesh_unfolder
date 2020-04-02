@@ -275,7 +275,7 @@ void GetCurveSegmentsWithCSSImage(vector<cv::Point_<T> >& curve, vector<int>& in
 	drawOpenCurve(drawing, curve, color, 2);
 
 	for (int m=0; m<interestPoints.size() ; m++) {
-		circle(drawing, curve[interestPoints[m]], 5, Scalar(0,255), CV_FILLED);
+		circle(drawing, curve[interestPoints[m]], 5, Scalar(0,255), FILLED);
 	}
 
 #ifndef __APPLE__

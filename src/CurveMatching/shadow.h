@@ -111,7 +111,7 @@ struct CSShape {
 	//
 	void builDistField()
 	{
-		cv::distanceTransform(this->domain, distfield, CV_DIST_L2, CV_DIST_MASK_5);
+		cv::distanceTransform(this->domain, distfield, DIST_L2, DIST_MASK_5);
 
 #if SHOW_DIST_TRANSFORM
 		{
@@ -140,7 +140,7 @@ struct CSShape {
 			}
 		}
 
-		drawContours(mat, cv_contours, -1, color, CV_FILLED);
+		drawContours(mat, cv_contours, -1, color, FILLED);
 	}
 
 	struct contour_DB {
@@ -189,7 +189,7 @@ template<typename MATCHER, typename PT> bool CSShape<MATCHER, PT>::inside(
 	cv::Mat shadow_img(distfield.size(), CV_8UC1, cv::Scalar::all(255)); //a white image
 
 	//fill in with black color
-	drawContours(shadow_img, shadow_trans, 0, cv::Scalar::all(0), CV_FILLED);
+	drawContours(shadow_img, shadow_trans, 0, cv::Scalar::all(0), FILLED);
 
 	//check if shadow_trans is inside target_contours
 	int bad_pixel_count = 0;

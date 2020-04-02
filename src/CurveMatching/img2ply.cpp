@@ -49,7 +49,7 @@ bool img2ply(cv::Mat src, c_polygon& polygon)
 		vector<vector<cv::Point> > contours;
 		vector<cv::Vec4i> hierarchy;
 
-		cv::findContours(threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE);
+		cv::findContours(threshold_output, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 		//cv::findContours(threshold_output, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
 
 		int csize = contours.size();
@@ -136,7 +136,7 @@ bool img2ply_complete(cv::Mat& img, vector<c_polygon>& polygons, float threshold
 	vector<vector<cv::Point> > contours;
 	vector<cv::Vec4i> hierarchy;
 
-	cv::findContours(img, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE);
+	cv::findContours(img, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
 	int csize = contours.size();
 

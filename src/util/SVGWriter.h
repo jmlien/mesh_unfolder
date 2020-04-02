@@ -98,60 +98,14 @@ private:
 
   struct Tab
   {
-      bool intersect(const Tab& other) const
-      {
-        double pp[2] = { 0.0, 0.0 };
-        auto it=shape_.begin();
-        auto ne=it; ne++;
-        for(;ne!=shape_.end();it=ne,ne++)
-        {
-          const double a1[2] = {(*it)[0], (*it)[2]};
-          const double b1[2] = {(*ne)[0], (*ne)[2]};
+      Tab();
 
-          auto it2=other.shape_.begin();
-          auto ne2=it2; ne2++;
-          for(;ne2!=other.shape_.end();it2=ne2,ne2++)
-          {
-            const double a2[2] = {(*it2)[0], (*it2)[2]};
-            const double b2[2] = {(*ne2)[0], (*ne2)[2]};
-            if( SegSegInt<double>(a1, b1, a2, b2, pp)=='1' ) { return true;}
-          }//end for ne2
-        }//end for ne
-        return false;
-      }
-
-      bool intersect(const Vector3d & u, const Vector3d & v) const
-      {
-
-        //regular checks
-        double pp[2] = { 0.0, 0.0 };
-        const double v2[2] = { v[0], v[2] };
-        const double u2[2] = { u[0], u[2] };
-
-        auto it=shape_.begin();
-        auto ne=it; ne++;
-        for(;ne!=shape_.end();it=ne,ne++)
-        {
-          double a1[2] = {(*it)[0], (*it)[2]};
-          double b1[2] = {(*ne)[0], (*ne)[2]};
-
-          //check if ac intersect uv
-          char r = SegSegInt<double>(a1, b1, v2, u2, pp);
-
-          //avoid intersection at end points
-          Vector3d tmp(pp[0],0,pp[1]);
-          if( (tmp-v).normsqr()<1e-10 ) continue;
-          if( (tmp-u).normsqr()<1e-10 ) continue;
-
-          if(r=='1') return true;
-
-        }//end for ne
-
-        return false;
-      }
+      bool intersect(const Tab& other) const;
+      bool intersect(const Vector3d & u, const Vector3d & v) const;
 
       list<Vector3d> shape_;
       uint eid;         //eid of the edge that this tab is appended to
+      bool inter_net_tab; //this tab connects two nets
   };
 
   //this is a hexgon attaching to a valley fold
@@ -207,39 +161,14 @@ private:
   bool IsValid(const Tab& tab) const;
 
   //greedy approach to sort line segments so the total travel distance is minimized
-  inline void sort_line_segments(list< pair<Vector3d,Vector3d> >& segs)
-  {
-    if(segs.empty()) return;
+  void sort_line_segments(list< pair<Vector3d,Vector3d> >& segs) const;
 
-    list< pair<Vector3d,Vector3d> > segs_sorted;
-    segs_sorted.push_back(segs.front());
-    segs.pop_front();
+  //greedy approach to sort line segments so the total travel distance is minimized
+  void sort_points(list< Vector3d >& pts) const;
 
-    while(segs.empty()==false)
-    {
-      //find a closest seg to the last seg in segs_sorted
-      auto& last_seg = segs_sorted.back();
-      float min_d=FLT_MAX;
-      auto best_seg=segs.end();
-
-      for(auto i=segs.begin();i!=segs.end();i++)
-      {
-         float d=(i->first-last_seg.second).normsqr();
-         if(d<min_d)
-         {
-           min_d=d;
-           best_seg=i;
-         }
-      }//end for
-
-      assert(best_seg!=segs.end());
-      segs_sorted.push_back(*best_seg);
-      segs.erase(best_seg);
-
-    }//end while
-
-    segs.swap(segs_sorted);
-  }
+  //drawing Methods
+  void WriteSquare(ostream& out, const Vector3d& pt, float width) const;
+  void WriteCross(ostream& out, const Vector3d& pt, float width) const;
 
   inline uint otherv(const triangle& tri, const  edge& e)
   {

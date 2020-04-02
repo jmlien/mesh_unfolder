@@ -357,7 +357,7 @@ PolygonFitEvaluator::PolygonFitEvaluator(const std::string& stencil_filename)
     exit(1);
   }
 
-  cv::Mat img = cv::imread(stencil_filename, CV_LOAD_IMAGE_GRAYSCALE);
+  cv::Mat img = cv::imread(stencil_filename, cv::IMREAD_GRAYSCALE);
 
   //cout<<"image size="<<img.size[0]<<" "<<img.size[1]<<endl;
 

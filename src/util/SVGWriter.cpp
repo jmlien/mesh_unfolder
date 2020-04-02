@@ -12,6 +12,7 @@
 
 #include <cstdlib>
 #include <sstream>
+#include <unordered_set>
 
 namespace {
 const int SVG_PADDING_PIXEL = 8;
@@ -524,17 +525,30 @@ void SVGWriter::WriteZipHints(ostream& out) {
 
   //
   //draw a square around the zip start
-  out << "  <path class=\"z\" d=\"";
+  unordered_set<uint> mids;
   for (list<uint>& zipline : this->zip_line_vids_) {
     int mid = zipline.size() / 2;
     auto ptr = zipline.begin();
     for (int i = 0; i < mid; i++, ptr++);
-    Vector3d p = GetSVGCoord(*ptr);
-    out << " M " << p[0] - boxw << " " << p[2] - boxw;
-    out << " L " << p[0] + boxw << " " << p[2] - boxw;
-    out << " L " << p[0] + boxw << " " << p[2] + boxw;
-    out << " L " << p[0] - boxw << " " << p[2] + boxw;
-    out << " L " << p[0] - boxw << " " << p[2] - boxw;
+    mids.insert(*ptr);
+  }
+
+  list<Vector3d> mid_pts;
+  for(uint mid : mids)
+  {
+    mid_pts.push_back(GetSVGCoord(mid));
+  }
+  sort_points(mid_pts);
+
+  out << "  <path class=\"z\" d=\"";
+  for(Vector3d & p : mid_pts)
+  {
+    WriteSquare(out,p,boxw);
+    // out << " M " << p[0] - boxw << " " << p[2] - boxw;
+    // out << " L " << p[0] + boxw << " " << p[2] - boxw;
+    // out << " L " << p[0] + boxw << " " << p[2] + boxw;
+    // out << " L " << p[0] - boxw << " " << p[2] + boxw;
+    // out << " L " << p[0] - boxw << " " << p[2] - boxw;
   }
   out << "\" />" << endl;
 }
@@ -848,8 +862,9 @@ void SVGWriter::BuildTabs() {
         continue;
       else
       {
-        //we may still build a tab if we cannot find the twin edge1
-        //as this edge might be cut by net surgent
+        //we may still build a tab if we cannot find the twin edge
+        //as this edge might be cut by net surgent, in which this->model is
+        //a subset of this->model->source
         const edge & src_e = src_m->edges[e.source_eid];
         const triangle & e_incident_tri = this->model_->tris[e.fid.front()];
         uint src_fid=e_incident_tri.source_fid;
@@ -880,6 +895,7 @@ void SVGWriter::BuildTabs() {
         //double tab_length1 = min(elen,fabs((p6 - p4)*n2.normalize()*0.9));
         double tab_length = min(elen,fabs((p3 - p1)*n1.normalize()*0.9));
         Tab tab = BuildTab(p1, p2, n1, tab_length, i);
+        tab.inter_net_tab=true; //mark this tab as a special tab
 
         if (IsValid(tab))
         {
@@ -980,20 +996,42 @@ void SVGWriter::WriteTabs(ostream& out)
   for (auto& t : tabs_) {
     auto& tab = t.second;
     const auto& start = tab.shape_.front();
-    Vector3d tc=start;
     out << " M " << start[0] << " " << start[2];
     for (auto it = ++tab.shape_.begin(); it != tab.shape_.end(); it++) {
       out << " L " << (*it)[0] << " " << (*it)[2];
-      tc=tc+*it;
     }
-    //compute tab center and draw a square?
+  }
+  out << "\" />" << endl;
+
+  //compute tab center and draw a cross?
+  list<Vector3d> tcs;
+  list<Vector3d> tcs_inter;
+  for (auto& t : tabs_) {
+    auto& tab = t.second;
+    Vector3d tc;
+    for (auto& pt : tab.shape_) tc=tc+pt;
     tc=tc/tab.shape_.size();
-    //out << " L " << start[0] << " " << start[2];
-    //draw a square around the tab center
-    out << " M " << tc[0] - boxw << " " << tc[2] - boxw;
-    out << " L " << tc[0] + boxw << " " << tc[2] + boxw;
-    out << " M " << tc[0] - boxw << " " << tc[2] + boxw;
-    out << " L " << tc[0] + boxw << " " << tc[2] - boxw;
+    if(tab.inter_net_tab) tcs_inter.push_back(tc);
+    else tcs.push_back(tc);
+  }
+
+  sort_points(tcs_inter);
+  sort_points(tcs);
+
+  out << "  <path class=\"tab\" d=\"";
+  for(auto& tc:tcs)
+  {
+    //draw a cross around the tab center
+    WriteCross(out,tc,boxw);
+  }
+  out << "\" />" << endl;
+  out << "  <path class=\"tab\" d=\"";
+  for(auto& tc:tcs_inter)
+  {
+    //draw a cross around the tab center
+    WriteCross(out,tc,boxw);
+    //add a square around the cross
+    WriteSquare(out,tc,boxw);
   }
   out << "\" />" << endl;
 }
@@ -1080,6 +1118,93 @@ void SVGWriter::FindBoundaryPolygon(vector<int>* boundary_vertices) {
   }
 }
 
+//greedy approach to sort points so the total travel distance is minimized
+void SVGWriter::sort_points(list< Vector3d >& pts) const
+{
+  if(pts.empty()) return;
+  list< Vector3d > sorted;
+  sorted.push_back(pts.front());
+  pts.pop_front();
+
+  while(pts.empty()==false)
+  {
+    //find a closest pt to the last pt in sorted
+    auto& last = sorted.back();
+    float min_d=FLT_MAX;
+    auto best=pts.end();
+
+    for(auto i=pts.begin();i!=pts.end();i++)
+    {
+       float d=(*i - last).normsqr();
+       if(d<min_d)
+       {
+         min_d=d;
+         best=i;
+       }
+    }//end for
+
+    assert(best!=pts.end());
+    sorted.push_back(*best);
+    pts.erase(best);
+
+  }//end while
+
+  pts.swap(sorted);
+}
+
+//greedy approach to sort line segments so the total travel distance is minimized
+void SVGWriter::sort_line_segments(list< pair<Vector3d,Vector3d> >& segs) const
+{
+  if(segs.empty()) return;
+
+  list< pair<Vector3d,Vector3d> > segs_sorted;
+  segs_sorted.push_back(segs.front());
+  segs.pop_front();
+
+  while(segs.empty()==false)
+  {
+    //find a closest seg to the last seg in segs_sorted
+    auto& last_seg = segs_sorted.back();
+    float min_d=FLT_MAX;
+    auto best_seg=segs.end();
+
+    for(auto i=segs.begin();i!=segs.end();i++)
+    {
+       float d=(i->first-last_seg.second).normsqr();
+       if(d<min_d)
+       {
+         min_d=d;
+         best_seg=i;
+       }
+    }//end for
+
+    assert(best_seg!=segs.end());
+    segs_sorted.push_back(*best_seg);
+    segs.erase(best_seg);
+
+  }//end while
+
+  segs.swap(segs_sorted);
+}
+
+//drawing Methods
+void SVGWriter::WriteSquare(ostream& out, const Vector3d& tc, float boxw) const
+{
+  out << " M " << tc[0] - boxw << " " << tc[2] - boxw;
+  out << " L " << tc[0] + boxw << " " << tc[2] - boxw;
+  out << " L " << tc[0] + boxw << " " << tc[2] + boxw;
+  out << " L " << tc[0] - boxw << " " << tc[2] + boxw;
+  out << " L " << tc[0] - boxw << " " << tc[2] - boxw;
+}
+
+void SVGWriter::WriteCross(ostream& out, const Vector3d& pt, float boxw) const
+{
+  out << " M " << pt[0] - boxw << " " << pt[2] - boxw;
+  out << " L " << pt[0] + boxw << " " << pt[2] + boxw;
+  out << " M " << pt[0] - boxw << " " << pt[2] + boxw;
+  out << " L " << pt[0] + boxw << " " << pt[2] - boxw;
+}
+
 Vector3d SVGWriter::GetSVGCoord(uint vid) const {
   return GetSVGCoord(this->model_->vertices[vid].p);
 }
@@ -1124,6 +1249,69 @@ void Bezier(const Vector3d & a, const Vector3d & b, const Vector3d & c,
   }
 
   curve.push_back(c);
+}
+
+//
+//TAB
+//
+
+SVGWriter::Tab::Tab()
+{
+  //setup default values
+  this->eid=UINT_MAX;         //eid of the edge that this tab is appended to
+  this->inter_net_tab=false; //this tab connects two nets
+}
+
+bool SVGWriter::Tab::intersect(const Tab& other) const
+{
+  double pp[2] = { 0.0, 0.0 };
+  auto it=shape_.begin();
+  auto ne=it; ne++;
+  for(;ne!=shape_.end();it=ne,ne++)
+  {
+    const double a1[2] = {(*it)[0], (*it)[2]};
+    const double b1[2] = {(*ne)[0], (*ne)[2]};
+
+    auto it2=other.shape_.begin();
+    auto ne2=it2; ne2++;
+    for(;ne2!=other.shape_.end();it2=ne2,ne2++)
+    {
+      const double a2[2] = {(*it2)[0], (*it2)[2]};
+      const double b2[2] = {(*ne2)[0], (*ne2)[2]};
+      if( SegSegInt<double>(a1, b1, a2, b2, pp)=='1' ) { return true;}
+    }//end for ne2
+  }//end for ne
+  return false;
+}
+
+bool SVGWriter::Tab::intersect(const Vector3d & u, const Vector3d & v) const
+{
+
+  //regular checks
+  double pp[2] = { 0.0, 0.0 };
+  const double v2[2] = { v[0], v[2] };
+  const double u2[2] = { u[0], u[2] };
+
+  auto it=shape_.begin();
+  auto ne=it; ne++;
+  for(;ne!=shape_.end();it=ne,ne++)
+  {
+    double a1[2] = {(*it)[0], (*it)[2]};
+    double b1[2] = {(*ne)[0], (*ne)[2]};
+
+    //check if ac intersect uv
+    char r = SegSegInt<double>(a1, b1, v2, u2, pp);
+
+    //avoid intersection at end points
+    Vector3d tmp(pp[0],0,pp[1]);
+    if( (tmp-v).normsqr()<1e-10 ) continue;
+    if( (tmp-u).normsqr()<1e-10 ) continue;
+
+    if(r=='1') return true;
+
+  }//end for ne
+
+  return false;
 }
 
 } /* namespace util */
