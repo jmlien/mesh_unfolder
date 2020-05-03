@@ -25,6 +25,7 @@ using namespace std;
 #include "UnfoldingState.h"
 #include "util/TextureRenderer2D.h"
 #include "util/SVGWriter.h"
+#include "util/BitVector.h"
 #include "polygon/polygon.h"
 
 //the type MESH is defined in model.h as:
@@ -129,7 +130,7 @@ public:
   int buildFromWeights(const vector<float>& weights, bool force_check_overlaps = true);
 
   /// build the unfolding from binary weights and return # overlaps, true means the edge is a crease (should not be cut)
-  int buildFromWeights(const vector<bool>& weights, bool force_check_overlaps = true);
+  int buildFromWeights(const BitVector& weights, bool force_check_overlaps = true);
 
   /// Build the unfolding from a cut file. each cut is one line in <vid1, vid2> 1-based format.
   int buildFromCuts(const string& path);
