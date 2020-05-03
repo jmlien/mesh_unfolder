@@ -38,7 +38,7 @@ protected:
     // normalize the given weights.
     void normalizeWeights(vector<float>& weights);
     // generate a random unit vector
-    Vector3d genRandomUnitVector(const Config& config);
+    virtual  Vector3d genRandomUnitVector(const Config& config);
     Splitter();
     float m_min_edge_length;
     float m_max_edge_length;

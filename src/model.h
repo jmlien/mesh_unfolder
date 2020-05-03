@@ -96,6 +96,7 @@ struct vertex {
     hyperbolic = false;
     score = 0.0;
     cut_src_id=UINT_MAX;
+    source_vid=UINT_MAX;
   }
   Point3d p;  //position
   list<uint> m_f;
@@ -145,6 +146,13 @@ struct edge {
       if(id!=ofid) return id;
     }
     return -1; //border edge
+  }
+
+  //given an incident vertex id (ovid)
+  //return the other incident vertex id
+  uint otherv(uint ovid) const
+  {
+    return (vid[0]==ovid)?vid[1]:vid[0];
   }
 
   uint vid[2];

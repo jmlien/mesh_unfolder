@@ -1,11 +1,7 @@
 #pragma once
 
-#ifdef WIN32
-#include <hash_map>
-#else
-#include <unordered_map>
-#endif //WIN32
 
+#include <unordered_map>
 #include <list>
 #include <vector>
 #include <cassert>
@@ -36,14 +32,7 @@ private:
 
 	//hash_func
 	uint spatial_hash_func(const mathtool::Point3d& pos);
-
-	#ifdef WIN32
-	typedef hash_map<uint, list<uint> > hash_map;
-	#else
-	typedef unordered_map<uint, list<uint> > hash_map;
-	#endif //WIN32	
-
-	hash_map hash;
+	unordered_map<uint, list<uint> > hash;
 
 	//these are used to hash points
 	mathtool::Point3d hash_O;

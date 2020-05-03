@@ -29,7 +29,8 @@ enum class CutHeuristic {
   BRUTE_FORCE,        // b
   GA,                 // ga
   CLUSTERING,         // c
-  LP                  // lp
+  LP,                 // lp
+  BLOOMING,           // bloom
 };
 
 enum class Objective {
@@ -71,9 +72,14 @@ public:
     this->ga_max_gen = INT_MAX;
     this->ga_local_adj = 0;
 
+	//for cluster
     this->cluster_config_filename = "unfolding.cluster";
     this->lp_config_filename = "unfolding.lp";
 
+	//for blooming
+	this->blooming_strategy = "flower";
+
+	//
     this->optimize_unfolding = false;
 
     this->k = -1;
@@ -207,6 +213,11 @@ public:
 
   // in repair mode, load the score and labels, and repair the clusters
   bool repair_mode;
+
+  //////////////////////////////////////////////
+  //  for blooming 
+  //////////////////////////////////////////////
+  string blooming_strategy;
 
   //////////////////////////////////////////////
   //  for shadow container

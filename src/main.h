@@ -27,6 +27,7 @@ using namespace std;
 #include "config.h"
 
 #include "ClusterUnfolding.h"
+#include "BloomingUnfolding.h"
 #include "LPUnfolding.h"
 #include "UnfoldingProblem.h"
 #include "CompactProblem.h"
@@ -85,30 +86,32 @@ bool parseArg(int argc, char ** argv) {
     } else if (arg == "-h") {
 
       auto const heuristic = string(argv[++i]);
-      if (heuristic[0] == 's')
-        config.heuristic = CutHeuristic::STEEPEST_EDGE;
-      else if (heuristic == "us")
-        config.heuristic = CutHeuristic::UNSTEEPEST_EDGE;
-      else if (heuristic[0] == 'f')
-        config.heuristic = CutHeuristic::FLAT_TREE;
-      else if (heuristic == "uf")
-        config.heuristic = CutHeuristic::UNFLAT_TREE;
-      else if (heuristic[0] == 'p')
-        config.heuristic = CutHeuristic::MINIMUM_PERIMETER;
-      else if (heuristic == "mp")
-        config.heuristic = CutHeuristic::MAXIMUM_PERIMETER;
-      else if (heuristic == "r")
-        config.heuristic = CutHeuristic::RANDOM;
-      else if (heuristic == "re")
-        config.heuristic = CutHeuristic::RANDOM_EDGE;
-      else if (heuristic[0] == 'b')
-        config.heuristic = CutHeuristic::BRUTE_FORCE;
-      else if (heuristic == "ga")
-        config.heuristic = CutHeuristic::GA;
-      else if (heuristic == "c")
-        config.heuristic = CutHeuristic::CLUSTERING;
-      else if (heuristic == "lp")
-        config.heuristic = CutHeuristic::LP;
+	  if (heuristic[0] == 's')
+		  config.heuristic = CutHeuristic::STEEPEST_EDGE;
+	  else if (heuristic == "us")
+		  config.heuristic = CutHeuristic::UNSTEEPEST_EDGE;
+	  else if (heuristic[0] == 'f')
+		  config.heuristic = CutHeuristic::FLAT_TREE;
+	  else if (heuristic == "uf")
+		  config.heuristic = CutHeuristic::UNFLAT_TREE;
+	  else if (heuristic[0] == 'p')
+		  config.heuristic = CutHeuristic::MINIMUM_PERIMETER;
+	  else if (heuristic == "mp")
+		  config.heuristic = CutHeuristic::MAXIMUM_PERIMETER;
+	  else if (heuristic == "r")
+		  config.heuristic = CutHeuristic::RANDOM;
+	  else if (heuristic == "re")
+		  config.heuristic = CutHeuristic::RANDOM_EDGE;
+	  else if (heuristic == "bloom")
+		  config.heuristic = CutHeuristic::BLOOMING;
+	  else if (heuristic[0] == 'b')
+		  config.heuristic = CutHeuristic::BRUTE_FORCE;
+	  else if (heuristic == "ga")
+		  config.heuristic = CutHeuristic::GA;
+	  else if (heuristic == "c")
+		  config.heuristic = CutHeuristic::CLUSTERING;
+	  else if (heuristic == "lp")
+		  config.heuristic = CutHeuristic::LP;
       else {
         cerr << "!Error! Unknown heuristic type = " << heuristic << endl;
         return false;
@@ -265,7 +268,10 @@ bool parseArg(int argc, char ** argv) {
       config.output_file = argv[++i];
     } else if (arg == "-polygon") {
       config.stencil_filename = argv[++i];
-    } else if (arg[0] == '-') {
+    } else if (arg == "-bloom") {
+	  config.blooming_strategy = argv[++i];
+	}
+	else if (arg[0] == '-') {
       cerr << "!Error! Unknown arg = " << arg << endl;
       return false;
     } else {
@@ -294,16 +300,8 @@ void printUsage(char * name) {
   cerr << "     ga        | Genetic Algorithm\n";
   cerr << "      c        | Clustering based method\n";
   cerr << "     lp        | Linear Programming branch and bound based method\n";
+  cerr << "     bloom     | Blooming unfolding\n";
   cerr << "\n";
-
-  cerr << "Clustering\n";
-  cerr << "  -c filename  | specify the clustering config file. defualt = '"
-      << default_config.cluster_config_filename << "'\n";
-  cerr << "  -k           | override the number of components.\n";
-  cerr << "  -i           | maximum iterations.\n";
-  cerr << "  -l filename  | using external labels.\n";
-  cerr << "  -w           | using weighted distance between faces.\n";
-  cerr << "  -f           | do not use cache file.\n\n";
 
   cerr << "Unfolding\n";
   cerr << "  -ga filename | specify the ga config file. default = '"
@@ -334,6 +332,19 @@ void printUsage(char * name) {
   cerr << "  -tab         | add tabs in the net.\n";
 
   cerr << "  -nbb         | do not find best base face.\n\n";
+
+  cerr << "Clustering\n";
+  cerr << "  -c filename  | specify the clustering config file. defualt = '"
+	  << default_config.cluster_config_filename << "'\n";
+  cerr << "  -k           | override the number of components.\n";
+  cerr << "  -i           | maximum iterations.\n";
+  cerr << "  -l filename  | using external labels.\n";
+  cerr << "  -w           | using weighted distance between faces.\n";
+  cerr << "  -f           | do not use cache file.\n\n";
+
+  cerr << "Blooming\n";
+  cerr << "  -bloom alg   | specify blooming algorithm: flower or star. defualt = '"
+	   << default_config.blooming_strategy << "'\n";
 
   cerr <<"Net Optimization\n";
   cerr << "  -objective # | specify the objective for optimization\n";
@@ -421,6 +432,21 @@ inline void run_cluster_unfolder(Unfolder* unfolder)
   }
 } //run_cluster_unfolder()
 
+inline Unfolder* run_blooming_unfolder(Unfolder* unfolder)
+{
+	cout << "- Blooming module" << endl;
+	BloomingUnfolding problem(unfolder);
+	if (problem.setup(config.blooming_strategy))
+	{
+		problem.run();
+    return problem.getUnfolder();
+	}
+	else {
+		cerr << "Error! Failed to setup Blooming" << endl;
+	}
+  return unfolder;
+}
+
 bool unfold()
 {
   long vsize = 0;
@@ -457,9 +483,7 @@ bool unfold()
 
     if (config.weights_filename.length() > 0) {
       // build from weights;
-      cout<<"build from weights 1"<<endl;
       unfolder->buildFromWeights(config.weights_filename);
-      cout<<"build from weights 2"<<endl;
       unfolder->rebuildModel();
       //optimize more from the current weights
       if (config.heuristic == CutHeuristic::GA){ run_ga_unfolder(unfolder); }
@@ -469,6 +493,9 @@ bool unfold()
       unfolder->rebuildModel();
     } else if (config.heuristic == CutHeuristic::CLUSTERING) {
       run_cluster_unfolder(unfolder);
+	}else if (config.heuristic == CutHeuristic::BLOOMING) {
+	  unfolder=run_blooming_unfolder(unfolder);
+    m=unfolder->getModel();
     } else if (config.heuristic == CutHeuristic::LP) {
       //deprecated
       // LPUnfolding problem(unfolder);

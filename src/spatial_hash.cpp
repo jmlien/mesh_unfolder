@@ -19,7 +19,7 @@ bool AlmostEqual3(const Point3d& a, const Point3d& b, double smallnumber)
 uint spatial_hash::add_point(const Point3d& pos)  //add a point to hast
 {
 	uint key = spatial_hash_func(pos);
-	hash_map::iterator it = hash.find(key);
+	auto it = hash.find(key);
 
 	if (it != hash.end())
 	{
@@ -52,7 +52,7 @@ uint spatial_hash::add_point(const Point3d& pos)  //add a point to hast
 uint spatial_hash::find_point(const Point3d& pos) //query/find the id of a given point
 {
 	uint key = spatial_hash_func(pos);
-	hash_map::iterator it = hash.find(key);
+	auto it = hash.find(key);
 
 	if (it != hash.end())
 	{

@@ -86,6 +86,7 @@ set(LIBUNFOLDER_SRC
     UnfoldingProblem.cpp
     UnfoldingState.cpp
     OverlappingChecker.cpp
+    BloomingUnfolding.cpp
     CompactProblem.cpp)
 
 add_library(libunfolder STATIC ${LIBUNFOLDER_SRC})

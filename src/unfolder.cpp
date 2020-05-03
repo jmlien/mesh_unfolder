@@ -234,6 +234,17 @@ int Unfolder::buildFromWeights(const string& path) {
   return this->buildFromWeights(this->m_weights);
 }
 
+/// build the unfolding from binary weights and return # overlaps
+/// Note: this could be done faster wihtout calling buildFromWeights(const vector<float>& weights...)
+/// as we can quickly build MST using bweights
+int Unfolder::buildFromWeights(const vector<bool>& bweights, bool force_check_overlaps)
+{
+	vector<float> weights;
+	for (bool b : bweights) weights.push_back(b?0:1);
+	return buildFromWeights(weights, force_check_overlaps);
+}
+
+/// build the unfolding from weights and return # overlaps
 int Unfolder::buildFromWeights(const vector<float>& weights,
     bool force_check_overlaps) {
 

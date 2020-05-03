@@ -66,7 +66,7 @@ bool model::build(const string & name, bool quiet)
   delete reader;
 
   { //model name
-    int start = name.find_last_of("/");
+    int start = name.find_last_of("/")+1;
     if (start == string::npos)
       start = name.find_last_of("\\") + 1;
     if (start == string::npos)
@@ -828,6 +828,17 @@ int model::getEdgeIdByFids(int fid1, int fid2) const
 {
   const triangle& f1 = this->tris[fid1];
   const triangle& f2 = this->tris[fid2];
+
+  if(fid1==fid2){//special case that needs to be handled first
+      cerr<<"! Warning: getting a border edge is not recommanded as the edge may not be unique"<<endl;
+      for (int eid : f1.e) {
+        const edge& e = this->edges[eid];
+        if(e.type!='b') continue;
+        return eid;
+      }
+      return -1; //not found
+  }
+
   for (int eid : f1.e) {
     const edge& e = this->edges[eid];
     if (std::find(e.fid.begin(), e.fid.end(), (unsigned int) fid2)
