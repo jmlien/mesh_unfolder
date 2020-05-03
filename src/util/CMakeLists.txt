@@ -7,5 +7,5 @@ set(LIBUNFOLDER_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/TextureRenderer2D.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/UnfolderHelper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/VRMLWriter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/VRMLWriter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/BitVector.cpp
     PARENT_SCOPE)
