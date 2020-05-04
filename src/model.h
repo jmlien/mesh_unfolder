@@ -155,6 +155,9 @@ struct edge {
     return (vid[0]==ovid)?vid[1]:vid[0];
   }
 
+  bool is2d() const {return isplanar();}
+  bool isplanar() const { return type == 'd' || type == 'p'; }
+
   uint vid[2];
   vector<uint> fid; //incident face ids
 

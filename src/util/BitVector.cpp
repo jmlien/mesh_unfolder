@@ -1,6 +1,7 @@
 #include "BitVector.h"
 #include <cmath>
 #include <iostream>
+#include <cassert>
 
 namespace masc {
 	namespace unfolding {
