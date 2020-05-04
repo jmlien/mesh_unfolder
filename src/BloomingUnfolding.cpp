@@ -48,95 +48,8 @@ namespace masc {
 		//get a list of  faces coplanar to the given face
 		//the return list include the face itself
 		//Note: this should actually be model to model.h
-		inline void getCoplanarFaces(model * m, int face, list<int>& coplanars)
-		{
-			list<int> open;
-			set<int> closed;
-			open.push_back(face);
+		inline void getCoplanarFaces(model * m, int face, list<int>& coplanars);
 
-			//get the faces coplanar to the base
-			while (!open.empty()) {
-				int fid = open.front();
-				open.pop_front();
-				triangle & f = m->tris[fid];
-				closed.insert(fid);
-
-				for (int i = 0; i < 3; i++) {
-					edge& e = m->edges[f.e[i]];
-					if (e.type != 'd') continue;
-					int of = e.otherf(fid);
-					if (closed.find(of) != closed.end()) continue; //this can be slow, but we should not have too many faces in closed
-					if (of != -1) open.push_back(of);
-				}//end for i
-			}//end while
-
-			coplanars.insert(coplanars.end(), closed.begin(), closed.end());
-		}
-/*
-		const int BitVector::_S = sizeof(int) * 8; //number of bits for int
-
-		BitVector::BitVector(const vector<bool>& values)
-			:_N((int)values.size())
-		{
-			data = vector<unsigned int>((int)ceil(_N*1.0f / _S), 0);
-
-			for (int i = 0; i < _N; i++) {
-				//cout<<"trying i="<<i<<endl;
-				if (values[i]) on(i);
-				// if((*this)[129]){
-				//   cout<<"129 is on why? "<<i<<endl;
-				//   exit(1);
-				// }
-			}
-		}
-
-		BitVector::BitVector(int size)
-			:_N(size)
-		{
-			data = vector<unsigned int>((int)ceil(_N*1.0f / _S), 0);
-		}
-
-		void BitVector::on(int i) {
-			assert(i < _N);
-			data[i / _S] |= (1 << (i%_S));
-		}
-
-		void BitVector::off(int i) {
-			assert(i < _N);
-			data[i / _S] &= ~(1 << (i%_S));
-		}
-
-		bool BitVector::operator[](int i) const {
-			assert(i < _N);
-			return data[i / _S] & (1 << (i%_S));
-		}
-
-		bool BitVector::operator<(const BitVector& other) const {
-			int size = data.size();
-			for (int i = size - 1; i >= 0; i--) {
-				if (data[i] != other.data[i]) return data[i] < other.data[i];
-			}
-			return false; //they are the same
-		}
-
-		ostream& operator<<(ostream& out, const BitVector& v) {
-			out << "(";
-			for (int i = 0; i < v._N; i++) out << v[i] << ((i < v._N - 1) ? "," : ")");
-			return out;
-		}
-
-		bool BitVector::operator==(const BitVector& other) const {
-			if (other._N != _N) return false;
-			int size = data.size();
-			for (int i = 0; i < size; i++) if (data[i] != other.data[i]) return false;
-			return true;
-		}
-
-		void BitVector::tovector(vector<bool>& values) const {
-			values.resize(_N); //ensure that there is enough space
-			for (int i = 0; i < _N; i++) values[i] = (*this)[i];
-		}
-*/
 		BloomingUnfolding::BloomingUnfolding(Unfolder* unfolder)
 		{
 			const Config & mycfg = unfolder->getConfig();
@@ -1740,6 +1653,34 @@ bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge inciden
 		{
 			FlowerBloomingSplitter::assignWeightsImpl(m, weights, config);
 			for (int eid : m_cut_edges) weights[eid] = 10;
+		}
+
+		//get a list of  faces coplanar to the given face
+		//the return list include the face itself
+		//Note: this should actually be model to model.h
+		inline void getCoplanarFaces(model * m, int face, list<int>& coplanars)
+		{
+			list<int> open;
+			set<int> closed;
+			open.push_back(face);
+
+			//get the faces coplanar to the base
+			while (!open.empty()) {
+				int fid = open.front();
+				open.pop_front();
+				triangle & f = m->tris[fid];
+				closed.insert(fid);
+
+				for (int i = 0; i < 3; i++) {
+					edge& e = m->edges[f.e[i]];
+					if (e.type != 'd') continue;
+					int of = e.otherf(fid);
+					if (closed.find(of) != closed.end()) continue; //this can be slow, but we should not have too many faces in closed
+					if (of != -1) open.push_back(of);
+				}//end for i
+			}//end while
+
+			coplanars.insert(coplanars.end(), closed.begin(), closed.end());
 		}
 
 	}
