@@ -117,6 +117,12 @@ namespace masc {
 				//calls compute_edge_cost(model *m, int face, vector<float>& costs)
 				void compute_edge_cost(model *m, vector<float>& costs);
 
+				//access
+				float & G(){ return g; }
+				float & H(){ return h; }
+				float getDepth() const { return depth; }
+				float getLeafSize() const { return leaves; }
+
 			private:
 
 				float g, h; //g, h scores used in A*, f=g+h
@@ -136,7 +142,7 @@ namespace masc {
 				//this value include the area of the face itself
 				//pre consition: vector<float>& areas moptimalcutsust contain m->t_size zeros when this function is first
 				//called
-				float overlapping_cost(Unfolder *unfolder);
+				//float overlapping_cost(Unfolder *unfolder);
 
 				//find optimal cuts of the net
 				//return cost of cutting the net
@@ -155,7 +161,7 @@ namespace masc {
 				float compute_edge_cost(model *m, int face, vector<float>& costs);
 
 				//get a list of edges if the eid is connected in n
-				list<int> neighbor_edges(model * m, int eid);
+				//list<int> neighbor_edges(model * m, int eid);
 
 				//compute some statistics of this net, directly from code
 				//count # of leaves  & distance from the base to the farthest leaf
@@ -165,10 +171,23 @@ namespace masc {
 				void rebuild(model * m, const BitVector& B);
 			};
 
+			struct AStar_Helper
+			{
+				AStar_Helper(const Net& net, Unfolder * uf, float t=0)
+				: root(net){ termination=t; unfolder=uf; }
+				virtual list<Net> neighbors(Net& net)=0;
+				virtual float dist(Net& net, const vector<float>& ecosts)=0;
+				virtual float heuristics(Net& net)=0;
+				Unfolder * unfolder;
+				Net root;
+				float termination;
+			};
 
 			//optimize the net with A*
 			Net AStar();
 
+			//optimize the net with A*
+			Net AStar(AStar_Helper & help);
 
 			//build a new unfolder from the net, this is used most likely that
 			//some faces should be removed to ensure that there is no overlapping
@@ -182,6 +201,29 @@ namespace masc {
 			//compute the type of each face in the model using the given viewing dirsection
 			//the computed information is stored in model.triangle.cluster_id
 			void compute_face_types(Unfolder * unfolder, const Vector3d& dir);
+
+			struct AStar_Helper_Mixed : public AStar_Helper
+			{
+
+				AStar_Helper_Mixed(const Net& net, Unfolder * uf, float t=0):AStar_Helper(net,uf,t){}
+				list<Net> neighbors(Net& net) override;
+				float dist(Net& net, const vector<float>& ecosts) override;
+				float heuristics(Net& net) override;
+			};
+
+			struct AStar_Helper_Keep : public AStar_Helper
+			{
+				list<Net> neighbors(Net& net) override;
+				float dist(Net& net, const vector<float>& ecosts) override;
+				float heuristics(Net& net) override;
+			};
+
+			struct AStar_Helper_Toss : public AStar_Helper
+			{
+				list<Net> neighbors(Net& net) override;
+				float dist(Net& net, const vector<float>& ecosts) override;
+				float heuristics(Net& net) override;
+			};
 
 		private:
 
@@ -214,6 +256,9 @@ namespace masc {
 
 			//cost for removing each type of face
 			const static map<FACE_TYPE, float> g_face_cost; //cost for removing a face from the net
+
+			//
+			static float overlapping_cost(Unfolder *unfolder);
 		};
 
 
