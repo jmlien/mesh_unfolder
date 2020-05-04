@@ -117,6 +117,11 @@ namespace masc {
 				//calls compute_edge_cost(model *m, int face, vector<float>& costs)
 				void compute_edge_cost(model *m, vector<float>& costs);
 
+
+				//compute the type of each face in the model that is connected to the root
+				//in the given net
+				void compute_face_types(Unfolder * unfolder) const;
+
 				//access
 				float & G(){ return g; }
 				float & H(){ return h; }
@@ -184,7 +189,11 @@ namespace masc {
 			};
 
 			//optimize the net with A*
-			Net AStar();
+			Net AStar();//this is the first AStar, which is the same as AStar mix
+
+			Net AStarMix();//same as AStar
+
+			Net AStar2Steps(); //try to unfolde the keep faces and then toss faces
 
 			//optimize the net with A*
 			Net AStar(AStar_Helper & help);
@@ -213,16 +222,20 @@ namespace masc {
 
 			struct AStar_Helper_Keep : public AStar_Helper
 			{
+				AStar_Helper_Keep(const Net& net, Unfolder * uf, float t=0):AStar_Helper(net,uf,t){}
 				list<Net> neighbors(Net& net) override;
 				float dist(Net& net, const vector<float>& ecosts) override;
 				float heuristics(Net& net) override;
+				bool isKeep(int eid); //is the edge incident to keep faces
 			};
 
 			struct AStar_Helper_Toss : public AStar_Helper
 			{
+				AStar_Helper_Toss(const Net& net, Unfolder * uf, float t=0):AStar_Helper(net,uf,t){}
 				list<Net> neighbors(Net& net) override;
 				float dist(Net& net, const vector<float>& ecosts) override;
 				float heuristics(Net& net) override;
+				bool isKeep(int eid); //is the edge incident to keep faces
 			};
 
 		private:
@@ -255,7 +268,7 @@ namespace masc {
 			enum FACE_TYPE {BASE_FACE, KEEP_FACE, TOSS_FACE};
 
 			//cost for removing each type of face
-			const static map<FACE_TYPE, float> g_face_cost; //cost for removing a face from the net
+			static map<FACE_TYPE, float> g_face_cost; //cost for removing a face from the net
 
 			//
 			static float overlapping_cost(Unfolder *unfolder);
