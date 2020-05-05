@@ -87,6 +87,9 @@ namespace masc {
 			void virtual init();
 
 
+			//perform blooming unfolding
+			bool blooming_unfold(Unfolder * unfolder);
+
 			class Net //represented by a binary variable
 			{
 			public:
@@ -201,6 +204,9 @@ namespace masc {
 			//optimize the net with A*
 			Net AStar(AStar_Helper & help);
 
+			//build an unfolder that has only the KEEP_FACEs
+			Unfolder * build_keep_unfolder(Unfolder *unfolder, Net& net);
+
 			//build a new unfolder from the net, this is used most likely that
 			//some faces should be removed to ensure that there is no overlapping
 			Unfolder * build_unfolder_from_net(Unfolder *unfolder, Net& net);
@@ -213,6 +219,13 @@ namespace masc {
 			//compute the type of each face in the model using the given viewing dirsection
 			//the computed information is stored in model.triangle.cluster_id
 			void compute_face_types(Unfolder * unfolder, const Vector3d& dir);
+
+			//create a subset of m using the fids
+			model * build_submodel(model * m, list<uint> fids);
+
+			//get a list of faces that are connected to the base face according to the BitVector
+			//faces of the given toss_face_type are ignored
+			list<int> getCC(model * m, int base, const BitVector& B, int toss_face_type=-1);
 
 			struct AStar_Helper_Mixed : public AStar_Helper
 			{
@@ -246,14 +259,14 @@ namespace masc {
 		private:
 
 			//
-			enum BLOOMING_METHOD { FLOWER, STAR };
-			BLOOMING_METHOD m_blooming_method;
+			//enum BLOOMING_METHOD { FLOWER, STAR };
+			//BLOOMING_METHOD m_blooming_method;
 
 			//Splitter used in this unfolding
-			Splitter * m_splitter;
+			//Splitter * m_splitter;
 
 			//blooming base face
-			int m_blooming_base_fase; //user provided
+			//int m_blooming_base_fase; //user provided
 
 			uint m_runs; //number of trys
 
@@ -297,6 +310,7 @@ namespace masc {
 			model * m_model;
 		};
 
+/*
 		class StarBloomingSplitter : public FlowerBloomingSplitter
 		{
 		public:
@@ -314,6 +328,7 @@ namespace masc {
 			void assignWeightsImpl(model* m, vector<float>& weights, const Config& config) override;
 			unordered_set<int> m_cut_edges; //edges to be but using shortest path
 		};
+*/
 
 	}
 }
