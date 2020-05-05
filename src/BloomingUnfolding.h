@@ -127,6 +127,8 @@ namespace masc {
 				float & H(){ return h; }
 				float getDepth() const { return depth; }
 				float getLeafSize() const { return leaves; }
+				//const list<int>& Kids(int fid) const { return kids[fid]; }
+				//int Parent(int fid) const { return parent[fid]; }
 
 			private:
 
@@ -178,14 +180,15 @@ namespace masc {
 
 			struct AStar_Helper
 			{
-				AStar_Helper(const Net& net, Unfolder * uf, float t=0)
-				: root(net){ termination=t; unfolder=uf; }
+				AStar_Helper(const Net& net, Unfolder * uf, float t=0, int ml=3)
+				: root(net){ termination=t; unfolder=uf; max_level=ml;}
 				virtual list<Net> neighbors(Net& net)=0;
 				virtual float dist(Net& net, const vector<float>& ecosts)=0;
 				virtual float heuristics(Net& net)=0;
 				Unfolder * unfolder;
 				Net root;
 				float termination;
+				int max_level;
 			};
 
 			//optimize the net with A*
@@ -214,7 +217,7 @@ namespace masc {
 			struct AStar_Helper_Mixed : public AStar_Helper
 			{
 
-				AStar_Helper_Mixed(const Net& net, Unfolder * uf, float t=0):AStar_Helper(net,uf,t){}
+				AStar_Helper_Mixed(const Net& net, Unfolder * uf, float t=0, int ml=3):AStar_Helper(net,uf,t,ml){}
 				list<Net> neighbors(Net& net) override;
 				float dist(Net& net, const vector<float>& ecosts) override;
 				float heuristics(Net& net) override;
@@ -222,7 +225,7 @@ namespace masc {
 
 			struct AStar_Helper_Keep : public AStar_Helper
 			{
-				AStar_Helper_Keep(const Net& net, Unfolder * uf, float t=0):AStar_Helper(net,uf,t){}
+				AStar_Helper_Keep(const Net& net, Unfolder * uf, float t=0, int ml=3):AStar_Helper(net,uf,t,ml){}
 				list<Net> neighbors(Net& net) override;
 				float dist(Net& net, const vector<float>& ecosts) override;
 				float heuristics(Net& net) override;
@@ -231,11 +234,13 @@ namespace masc {
 
 			struct AStar_Helper_Toss : public AStar_Helper
 			{
-				AStar_Helper_Toss(const Net& net, Unfolder * uf, float t=0):AStar_Helper(net,uf,t){}
+				AStar_Helper_Toss(const Net& net, Unfolder * uf, float t=0, int ml=3):AStar_Helper(net,uf,t,ml){}
 				list<Net> neighbors(Net& net) override;
 				float dist(Net& net, const vector<float>& ecosts) override;
 				float heuristics(Net& net) override;
 				bool isKeep(int eid); //is the edge incident to keep faces
+				//bool Keep_KID(BloomingUnfolding::Net& net, int f);
+				//bool Keep_SUBNET(BloomingUnfolding::Net& net, int e);
 			};
 
 		private:
