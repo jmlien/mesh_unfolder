@@ -78,6 +78,8 @@ public:
 
 	//for blooming
 	this->blooming_strategy = "flower";
+	this->blooming_range = 0;
+	this->blooming_dir = Vector3d(0, 0, 0);
 
 	//
     this->optimize_unfolding = false;
@@ -115,7 +117,7 @@ public:
 
     this->find_best_base_face = true;
 
-    this->ordered_unfolding = false;
+    this->unfolding_motion = Linear_Unfolding;
 
     this->use_user_vector = false;
 
@@ -215,9 +217,11 @@ public:
   bool repair_mode;
 
   //////////////////////////////////////////////
-  //  for blooming 
+  //  for blooming
   //////////////////////////////////////////////
   string blooming_strategy;
+  float blooming_range;
+  Vector3d blooming_dir;
 
   //////////////////////////////////////////////
   //  for shadow container
@@ -289,8 +293,9 @@ public:
   // whether to find the best base face
   bool find_best_base_face;
 
+  enum Unfolding_Motion {Linear_Unfolding, Ordered_Unfolding, Laser_Unfolding};
   // whether the unfolding is ordered
-  bool ordered_unfolding;
+  Unfolding_Motion unfolding_motion;
 
   //
   bool use_user_vector; //if this is true, user vector will be used. otherwise random vector will be used. default: false

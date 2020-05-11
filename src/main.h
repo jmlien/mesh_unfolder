@@ -217,7 +217,9 @@ bool parseArg(int argc, char ** argv) {
     } else if (arg == "-nbb") {
       config.find_best_base_face = false;
     } else if (arg == "-ordered") {
-      config.ordered_unfolding = true;
+      config.unfolding_motion = Config::Ordered_Unfolding;
+    } else if (arg == "-laser") {
+      config.unfolding_motion = Config::Laser_Unfolding;
     } else if (arg == "-pc") {
       config.pixel_checker = true;
     } else if (arg == "-wrl") {
@@ -270,6 +272,10 @@ bool parseArg(int argc, char ** argv) {
       config.stencil_filename = argv[++i];
     } else if (arg == "-bloom") {
 	  config.blooming_strategy = argv[++i];
+	} else if (arg == "-bloom-range") {
+	  config.blooming_range = atof(argv[++i]);
+	} else if (arg == "-bloom-dir") {
+    for(short j=0;j<3;j++) config.blooming_dir[j]=atof(argv[++i]);
 	}
 	else if (arg[0] == '-') {
       cerr << "!Error! Unknown arg = " << arg << endl;
@@ -345,6 +351,9 @@ void printUsage(char * name) {
   cerr << "Blooming\n";
   cerr << "  -bloom alg   | specify blooming algorithm: flower or star. defualt = '"
 	   << default_config.blooming_strategy << "'\n";
+  cerr << "  -bloom-range | a small float for including the faces for initial unfolding'"
+	  << default_config.blooming_range << "'\n";
+  cerr << "  -bloom-dir | blooming direction. The defaul is the base normal dir\n";
 
   cerr <<"Net Optimization\n";
   cerr << "  -objective # | specify the objective for optimization\n";

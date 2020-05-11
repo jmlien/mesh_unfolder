@@ -796,8 +796,9 @@ void updateUnfolding(float p) {
     if (collision_dection) {
       if (unfolding_percentage == 1.0)
         u->checkOverlaps();
-      else
+      else{
         u->checkCollision();
+      }
     }
   }
 }

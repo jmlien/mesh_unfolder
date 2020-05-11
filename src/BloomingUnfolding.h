@@ -95,11 +95,11 @@ namespace masc {
 			public:
 
 				Net(const Net& other); //copy constructor
-				Net(model * m, int root, const BitVector& value); //build from value
+				Net(Unfolder * unfolder, int root, const BitVector& value); //build from value
 
 				//get the neighbors of this net
 				//requires the model and the base face id
-				list<Net> neighbors(model * m, int fbase);
+				list<Net> neighbors(Unfolder * unfolder, int fbase);
 
 				//the distance from the root
 				float dist(model * m, const Net& root, vector<float>& ecosts);
@@ -125,11 +125,16 @@ namespace masc {
 				//in the given net
 				void compute_face_types(Unfolder * unfolder) const;
 
+				//compute a list of areas that is in the subnet of a give face
+				//this value include the area of the face itself
+				void compute_area_in_subnet(model *m, int root, vector<float>& areas);
+
 				//access
 				float & G(){ return g; }
 				float & H(){ return h; }
 				float getDepth() const { return depth; }
 				float getLeafSize() const { return leaves; }
+				float getHullArea() const { return m_hull_area; }
 				//const list<int>& Kids(int fid) const { return kids[fid]; }
 				//int Parent(int fid) const { return parent[fid]; }
 
@@ -144,6 +149,9 @@ namespace masc {
 				int root; //root id, this should be the same for all nets
 				vector<int> parent;      //parent[i] is the parent of face i
 				vector<list<int> > kids; //kids[i] is the kids of face i
+
+				list<pair<uint,uint>> m_overlaps; //overlapping pairs
+				float m_hull_area; //convex hull area
 
 			protected:
 
@@ -161,9 +169,8 @@ namespace masc {
 					                BitVector& killed,
 													const vector<float>& areas);
 
-				//compute a list of areas that is in the subnet of a give face
-				//this value include the area of the face itself
-				void compute_area_in_subnet(model *m, int root, vector<float>& areas);
+				//mark all descendents as killed
+				void killDecendents(uint fid, BitVector& killed);
 
 				//compute a list of cost for flipping an edge
 				//the cost is based on the sum of its faces in the subtree
@@ -175,16 +182,16 @@ namespace masc {
 
 				//compute some statistics of this net, directly from code
 				//count # of leaves  & distance from the base to the farthest leaf
-				void analyze(model *m, const BitVector& value);
+				void analyze(Unfolder * unfolder, const BitVector& value);
 
 				//rebuild this net from the give code
-				void rebuild(model * m, const BitVector& B);
+				void rebuild(Unfolder * unfolder, const BitVector& B);
 			};
 
 			struct AStar_Helper
 			{
-				AStar_Helper(const Net& net, Unfolder * uf, float t=0, int ml=3)
-				: root(net){ termination=t; unfolder=uf; max_level=ml;}
+				AStar_Helper(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000)
+				: root(net){ termination=t; unfolder=uf; max_level=ml; max_fails=mf;}
 				virtual list<Net> neighbors(Net& net)=0;
 				virtual float dist(Net& net, const vector<float>& ecosts)=0;
 				virtual float heuristics(Net& net)=0;
@@ -192,6 +199,7 @@ namespace masc {
 				Net root;
 				float termination;
 				int max_level;
+				int max_fails;
 			};
 
 			//optimize the net with A*
@@ -201,11 +209,13 @@ namespace masc {
 
 			Net AStar2Steps(); //try to unfolde the keep faces and then toss faces
 
+			Net AStarLaser();
+
 			//optimize the net with A*
 			Net AStar(AStar_Helper & help);
 
 			//build an unfolder that has only the KEEP_FACEs
-			Unfolder * build_keep_unfolder(Unfolder *unfolder, Net& net);
+			Unfolder * build_keep_unfolder(Unfolder *unfolder);
 
 			//build a new unfolder from the net, this is used most likely that
 			//some faces should be removed to ensure that there is no overlapping
@@ -218,42 +228,65 @@ namespace masc {
 
 			//compute the type of each face in the model using the given viewing dirsection
 			//the computed information is stored in model.triangle.cluster_id
-			void compute_face_types(Unfolder * unfolder, const Vector3d& dir);
+			void compute_face_types(Unfolder * unfolder);
+			void compute_face_types(Unfolder * unfolder, const Vector3d& dir, float range=0);
 
 			//create a subset of m using the fids
 			model * build_submodel(model * m, list<uint> fids);
 
+			//convert a current unfolding into a net
+			Net getNet(Unfolder * unfolder);
+
 			//get a list of faces that are connected to the base face according to the BitVector
 			//faces of the given toss_face_type are ignored
-			list<int> getCC(model * m, int base, const BitVector& B, int toss_face_type=-1);
+			list<uint> getCC(model * m, int base, const BitVector& B, int toss_face_type=-1);
+
+			//evalute the folding process and return the number of colliding faces
+			int evaluate_folding_motion(Unfolder * unfolder);
 
 			struct AStar_Helper_Mixed : public AStar_Helper
 			{
 
-				AStar_Helper_Mixed(const Net& net, Unfolder * uf, float t=0, int ml=3):AStar_Helper(net,uf,t,ml){}
+				AStar_Helper_Mixed(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper(net,uf,t,ml,mf){}
 				list<Net> neighbors(Net& net) override;
 				float dist(Net& net, const vector<float>& ecosts) override;
 				float heuristics(Net& net) override;
 			};
 
-			struct AStar_Helper_Keep : public AStar_Helper
+			struct AStar_Helper_Keep : public AStar_Helper_Mixed
 			{
-				AStar_Helper_Keep(const Net& net, Unfolder * uf, float t=0, int ml=3):AStar_Helper(net,uf,t,ml){}
+				AStar_Helper_Keep(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper_Mixed(net,uf,t,ml,mf){}
 				list<Net> neighbors(Net& net) override;
-				float dist(Net& net, const vector<float>& ecosts) override;
+				//float dist(Net& net, const vector<float>& ecosts) override;
+				//float heuristics(Net& net) override;
+				bool isKeep(int eid); //is the edge incident to keep faces
+			};
+
+			struct AStar_Helper_Keep2 : public AStar_Helper_Mixed
+			{
+				AStar_Helper_Keep2(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper_Mixed(net,uf,t,ml,mf){}
 				float heuristics(Net& net) override;
 				bool isKeep(int eid); //is the edge incident to keep faces
 			};
 
 			struct AStar_Helper_Toss : public AStar_Helper
 			{
-				AStar_Helper_Toss(const Net& net, Unfolder * uf, float t=0, int ml=3):AStar_Helper(net,uf,t,ml){}
+				AStar_Helper_Toss(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper(net,uf,t,ml,mf){}
 				list<Net> neighbors(Net& net) override;
 				float dist(Net& net, const vector<float>& ecosts) override;
 				float heuristics(Net& net) override;
 				bool isKeep(int eid); //is the edge incident to keep faces
 				//bool Keep_KID(BloomingUnfolding::Net& net, int f);
 				//bool Keep_SUBNET(BloomingUnfolding::Net& net, int e);
+			};
+
+			struct AStar_Helper_Laser : public AStar_Helper_Mixed
+			{
+
+				AStar_Helper_Laser(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper_Mixed(net,uf,t,ml,mf){}
+				float dist(Net& net, const vector<float>& ecosts) override;
+				float heuristics(Net& net) override;
+				int evaluate_folding_motion(Unfolder * unfolder);
 			};
 
 		private:
@@ -267,6 +300,9 @@ namespace masc {
 
 			//blooming base face
 			//int m_blooming_base_fase; //user provided
+
+			Vector3d m_blooming_dir;
+			float m_blooming_range;
 
 			uint m_runs; //number of trys
 

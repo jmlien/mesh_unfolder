@@ -79,6 +79,20 @@ Unfolder::Unfolder(model* m, const Config& config)
   if (!m->texture_path.empty()) {
     this->m_texture_renderer.reset(new TextureRenderer2D(m->texture_path));
   }
+
+  // init base face id
+  if (this->m_config.random_baseface)
+    m_base_face_id = (int) (mathtool::drand48() * m_m->t_size);
+  else if (this->m_config.baseface >= 0) {
+    if (this->m_config.baseface >= this->m_m->t_size) {
+      std::cerr << "! Warning: base face out of range! baseface="<<this->m_config.baseface<<", t size="<<this->m_m->t_size<< endl;
+      m_base_face_id = 0;
+      //exit(-1);
+    }
+    m_base_face_id = this->m_config.baseface;
+  } else {
+    m_base_face_id = 0;
+  }
 }
 
 Unfolder::~Unfolder() {
@@ -480,6 +494,60 @@ void Unfolder::orderedUnfoldTo(double percentage) {
 
 }
 
+void Unfolder::laserUnfoldTo(double percentage) {
+
+  int count = this->m_m->t_size * percentage;
+
+  double ppf = (1.0 / this->m_m->t_size);
+
+  double left_percentage = (percentage - ppf * count) / ppf;
+
+  vector<double> folding_angles(m_m->e_size);
+
+  const auto & face_list = m_ordered_face_list;
+
+  //std::reverse(face_list.begin(), face_list.end());
+
+  int c = 0;
+
+  for (int i=1;i<face_list.size();i++) {
+    auto fid=face_list[i];
+    ++c;
+    // no need to unfold base_face;
+    if (fid == this->m_base_face_id)
+      continue;
+
+    // faces of tabs
+    if (fid >= this->m_m->t_size)
+      break;
+
+    const auto pfid = m_parents[fid];				// get parent face id
+    assert(pfid >= 0 && pfid < this->m_m->t_size);
+
+    const auto& f = this->m_m->tris[fid];				// current_face
+    const auto& pf = this->m_m->tris[pfid];				// parent_face
+    const auto eid = this->m_shared_edge[fid][pfid];	// shared edge id
+    const auto& e = this->m_m->edges[eid];				// shared edge
+
+    auto folding_angle = -e.folding_angle;
+
+    // fully unfolded expect the last one
+    if (c > count)
+      folding_angle *= left_percentage;
+
+    assert(!std::isnan(folding_angle));
+
+    folding_angles[eid] = folding_angle;
+
+    if (c > count)
+      break;
+  }
+
+  this->unfoldTo(folding_angles);
+
+}
+
+
 //void Unfolder::foldToCompactState() {
 //  auto elist = this->m_ordered_crease_list;
 //  std::reverse(elist.begin(), elist.end());
@@ -518,9 +586,13 @@ void Unfolder::unfoldTo(double percentage) {
   if (percentage > 1)
     percentage = 1.0f;
 
-  if (m_config.ordered_unfolding) {
+  if (m_config.unfolding_motion==Config::Ordered_Unfolding) {
     this->orderedUnfoldTo(percentage);
-  } else {
+  }
+  else if (m_config.unfolding_motion==Config::Laser_Unfolding) {
+    this->laserUnfoldTo(percentage);
+  }
+  else {
     this->linearUnfoldTo(percentage);
   }
 }
@@ -1745,7 +1817,7 @@ void Unfolder::computeUnfolding() {
 
   if (!m_config.quite)
     cout << " Done in " << (float) (clock() - start) / CLOCKS_PER_SEC << " s"
-        << endl;
+         << endl;
 }
 
 const Vector3d& Unfolder::getUnfoldedVertex(uint fid, uint org_vid) const {
@@ -1999,6 +2071,9 @@ bool Unfolder::getIntersectionOfPlane(const int fid1, const Vector3d& v1,
 }
 
 bool Unfolder::pointInTriangle(const int fid1, const Vector3d& p) {
+
+  Vector3d tmp(101.719, -1.17902e-14, 13.2997 );
+
   Vector3d p0 = this->m_unfolded[fid1][0].second;
   Vector3d p1 = this->m_unfolded[fid1][1].second;
   Vector3d p2 = this->m_unfolded[fid1][2].second;
@@ -2013,7 +2088,7 @@ bool Unfolder::pointInTriangle(const int fid1, const Vector3d& p) {
   double dot11 = v1 * v1;
   double dot12 = v1 * v2;
 
-  double invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+  double invDenom = 1.0 / (dot00 * dot11 - dot01 * dot01);
   double u = (dot11 * dot02 - dot01 * dot12) * invDenom;
   double v = (dot00 * dot12 - dot01 * dot02) * invDenom;
 
@@ -2026,6 +2101,35 @@ bool Unfolder::pointInTriangle(const int fid1, const Vector3d& p) {
 }
 
 bool Unfolder::hasIntersection(const int fid1, const int fid2) {
+
+  {
+    const auto f1 = this->m_m->tris[fid1];
+    const auto f2 = this->m_m->tris[fid2];
+    static const double s=0.9999;
+
+    Vector3d v[3],u[3];
+    for(int i=0;i<3;i++) v[i]=this->m_unfolded[fid1][i].second;
+    for(int i=0;i<3;i++) u[i]=this->m_unfolded[fid2][i].second;
+    Vector3d c1=(v[0]+v[1]+v[2])/3;
+    Vector3d c2=(u[0]+u[1]+u[2])/3;
+    for(int i=0;i<3;i++) v[i]=c1+(v[i]-c1)*s;
+    for(int i=0;i<3;i++) u[i]=c2+(u[i]-c2)*s;
+
+    int r= my_tri_contact(v[0].get(), v[1].get(), v[2].get(),
+                          u[0].get(), u[1].get(), u[2].get());
+
+/*
+    if(LASER_UNFOLD_DEBUG && fid1==4 && fid2==16){
+      cout<<"Face "<<fid1<<" and Face "<<fid2<<" intersection="<<r<<endl;
+      cout<<((v[1]-v[0])%(v[2]-v[0])).normalize()<<endl;
+      cout<<((u[1]-u[0])%(u[2]-u[0])).normalize()<<endl;
+    }
+    else
+*/
+      return r;
+  }
+
+
   bool intersection = false;
 
   const auto face1 = this->m_m->tris[fid1];
@@ -2042,6 +2146,7 @@ bool Unfolder::hasIntersection(const int fid1, const int fid2) {
       // check whether the intersection is in the face
       if (this->pointInTriangle(fid1, p)) {
         intersection = true;
+        break;
       }
     }
   }

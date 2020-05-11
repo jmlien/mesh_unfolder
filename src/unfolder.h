@@ -391,6 +391,10 @@ private:
   /// unfold the model by order
   void orderedUnfoldTo(double p);
 
+	/// unfold using outside-in laser forming order
+	/// kind of the reverse of orderedUnfoldTo
+	void laserUnfoldTo(double p);
+
   /// compute the unfolding based the MST
   /// 	1. parent of each face
   ///		2. ordered face list for a fast implementation
