@@ -4,7 +4,7 @@
 
 find_package(OpenGL REQUIRED)
 find_package(GLUT REQUIRED)
-find_package(OpenCV 4.0 REQUIRED)
+find_package(OpenCV 4.3 REQUIRED)
 
 include_directories(
     ${OPENGL_INCLUDE_DIRS}
@@ -87,6 +87,7 @@ set(LIBUNFOLDER_SRC
     UnfoldingState.cpp
     OverlappingChecker.cpp
     BloomingUnfolding.cpp
+    LaserUnfolding.cpp
     CompactProblem.cpp)
 
 add_library(libunfolder STATIC ${LIBUNFOLDER_SRC})

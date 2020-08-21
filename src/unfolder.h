@@ -340,6 +340,10 @@ public:
     return this->m_ordered_face_list;
   }
 
+	void setOrderedFaceList(const vector<uint>& ofl) {
+    this->m_ordered_face_list=ofl;
+  }
+
   const vector<int>& getFaceParents() const {
     return this->m_parents;
   }

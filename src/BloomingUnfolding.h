@@ -63,7 +63,7 @@ namespace masc {
 			BloomingUnfolding(Unfolder* unfolder);
 			virtual ~BloomingUnfolding();
 
-			bool setup(const string& method);
+			virtual bool setup(const string& method);
 
 			//////////////////////////////////////////
 			// run n unfoldings and cluster
@@ -114,7 +114,10 @@ namespace masc {
 				bool operator<(const Net& other) const;
 
 				//given a net find an optimal way to remove overlapping faces
-				float optimalcuts(Unfolder *unfolder);
+				float optimalcuts(Unfolder *unfolder, const vector<set<uint>>& overlaps);
+
+				//find optimal trim (instead of cut) of the net to avoid collision
+				float optimaltrims(Unfolder *unfolder, vector<set<uint>>& overlaps);
 
 				//compute a list of cost for flipping an edge
 				//calls compute_edge_cost(model *m, int face, vector<float>& costs)
@@ -138,8 +141,9 @@ namespace masc {
 				//const list<int>& Kids(int fid) const { return kids[fid]; }
 				//int Parent(int fid) const { return parent[fid]; }
 
-			private:
+			protected:
 
+				//DATA
 				float g, h; //g, h scores used in A*, f=g+h
 				float depth, leaves; //number of leaves and depth of the net
 				int n; //=code.size(), this should be the same for all nets
@@ -153,8 +157,6 @@ namespace masc {
 				list<pair<uint,uint>> m_overlaps; //overlapping pairs
 				float m_hull_area; //convex hull area
 
-			protected:
-
 				//a naive method to
 				//compute a list of areas that is in the subnet of a give face
 				//this value include the area of the face itself
@@ -167,7 +169,8 @@ namespace masc {
 				//the resulting net is stored in B
 				float optimalcuts(Unfolder *unfolder, list<int>& Q, BitVector& B,
 					                BitVector& killed,
-													const vector<float>& areas);
+													const vector<float>& areas,
+												  const vector<set<uint>>& overlaps);
 
 				//mark all descendents as killed
 				void killDecendents(uint fid, BitVector& killed);
@@ -209,8 +212,6 @@ namespace masc {
 
 			Net AStar2Steps(); //try to unfolde the keep faces and then toss faces
 
-			Net AStarLaser();
-
 			//optimize the net with A*
 			Net AStar(AStar_Helper & help);
 
@@ -244,31 +245,16 @@ namespace masc {
 			//evalute the folding process and return the number of colliding faces
 			int evaluate_folding_motion(Unfolder * unfolder);
 
+			//optimize both keep and toss faces together
 			struct AStar_Helper_Mixed : public AStar_Helper
 			{
-
 				AStar_Helper_Mixed(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper(net,uf,t,ml,mf){}
 				list<Net> neighbors(Net& net) override;
 				float dist(Net& net, const vector<float>& ecosts) override;
 				float heuristics(Net& net) override;
 			};
 
-			struct AStar_Helper_Keep : public AStar_Helper_Mixed
-			{
-				AStar_Helper_Keep(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper_Mixed(net,uf,t,ml,mf){}
-				list<Net> neighbors(Net& net) override;
-				//float dist(Net& net, const vector<float>& ecosts) override;
-				//float heuristics(Net& net) override;
-				bool isKeep(int eid); //is the edge incident to keep faces
-			};
-
-			struct AStar_Helper_Keep2 : public AStar_Helper_Mixed
-			{
-				AStar_Helper_Keep2(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper_Mixed(net,uf,t,ml,mf){}
-				float heuristics(Net& net) override;
-				bool isKeep(int eid); //is the edge incident to keep faces
-			};
-
+			//only consider the toss faces as much as possible
 			struct AStar_Helper_Toss : public AStar_Helper
 			{
 				AStar_Helper_Toss(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper(net,uf,t,ml,mf){}
@@ -279,17 +265,6 @@ namespace masc {
 				//bool Keep_KID(BloomingUnfolding::Net& net, int f);
 				//bool Keep_SUBNET(BloomingUnfolding::Net& net, int e);
 			};
-
-			struct AStar_Helper_Laser : public AStar_Helper_Mixed
-			{
-
-				AStar_Helper_Laser(const Net& net, Unfolder * uf, float t=0, int ml=3, int mf=1000):AStar_Helper_Mixed(net,uf,t,ml,mf){}
-				float dist(Net& net, const vector<float>& ecosts) override;
-				float heuristics(Net& net) override;
-				int evaluate_folding_motion(Unfolder * unfolder);
-			};
-
-		private:
 
 			//
 			//enum BLOOMING_METHOD { FLOWER, STAR };

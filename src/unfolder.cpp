@@ -2375,13 +2375,18 @@ bool Unfolder::checkCollision() {
 
   int count = 0;
 
+  //clean up and prepare for collision check
   for (int i = 0; i < F; i++)
     this->m_m->tris[i].overlapped = false;
 
+  if (this->m_config.record_overlap) {
+    this->m_overlap_pairs.clear();
+    m_overlap_pairs.resize(F);
+  }
+
+  //go through each pair
   for (int i = 0; i < F; i++) {
     for (int j = i+1; j < F; j++) {
-      // if (i == j)
-      //   continue;
 
       // two faces shared an edge in the unfolding (not in the original mesh).
       int eid=this->m_m->getEdgeIdByFids(i,j);
@@ -2393,6 +2398,10 @@ bool Unfolder::checkCollision() {
         ++count;
         this->m_m->tris[i].overlapped = true;
         this->m_m->tris[j].overlapped = true;
+        if (this->m_config.record_overlap){
+          this->m_overlap_pairs[i].insert(j);
+          this->m_overlap_pairs[j].insert(i);
+        }
       }
     }//end for j
   }//end for i

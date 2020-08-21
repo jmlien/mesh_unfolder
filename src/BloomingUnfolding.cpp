@@ -1,7 +1,7 @@
 /*
-* ClusterUnfolding.cpp
+* BloomingUnfolding.cpp
 *
-*  Created on: Dec 01, 2015
+*  Created on: April 22, 2020
 *      Author: jmlien
 */
 #include "BloomingUnfolding.h"
@@ -61,11 +61,6 @@ namespace masc {
 
 			if (mycfg.baseface == -1) {
 				cerr << "! Error: BloomingUnfolding requires the flag -bf to specify the base face" << endl;
-				exit(1);
-			}
-
-			if(mycfg.unfolding_motion!=Config::Laser_Unfolding){
-				cerr << "! Error: BloomingUnfolding requires the flag -laser to fold faces in outside-in order" << endl;
 				exit(1);
 			}
 
@@ -129,12 +124,6 @@ namespace masc {
 			if(this->m_blooming_dir.normsqr()==0)
 				this->m_blooming_dir = m_unfolder->getModel()->tris[m_unfolder->getBaseFaceID()].n;
 
-/*
-			if (m_blooming_base_fase < 0 || m_blooming_base_fase >= m_unfolder->getModel()->t_size) {
-				cerr << "! Error: BloomingUnfolding::setup: base face id=" << m_blooming_base_fase << " is out of bound" << endl;
-				return false;
-			}
-			*/
 			return true;
 		}
 
@@ -223,7 +212,8 @@ namespace masc {
 			//remove faces that are overlapping....
 			if(!this->m_no_trim){ //this is default
 				cout<<"- Blooming unfolding finding optimal cuts to resolve overlappings"<<endl;
-				optmized_net.optimalcuts(m_unfolder);
+				const auto& overlaps=m_unfolder->getOverlppingFacePairs();
+				optmized_net.optimalcuts(m_unfolder, overlaps);
 				cout<<"- Blooming unfolding building new unfoldings"<<endl;
 				m_unfolder = build_unfolder_from_net(m_unfolder, optmized_net);
 				model * subm=m_unfolder->getModel();
@@ -235,10 +225,6 @@ namespace masc {
 
 			//int count=this->evaluate_folding_motion(m_unfolder);
 			//cout<<"- collision count="<<count<<endl;
-
-			//optimize for laser forming
-			Net laser_net = AStarLaser();
-			m_unfolder->buildFromWeights(laser_net.encode());
 
 		}// END BloomingUnfolding::run()
 
@@ -271,43 +257,9 @@ namespace masc {
 			return Net(unfolder, unfolder->getBaseFaceID(), BitVector(ic));
 		}
 
-		BloomingUnfolding::Net BloomingUnfolding::AStarLaser()
-		{
-			Net start=getNet(m_unfolder);
-			AStar_Helper_Laser laser(start, m_unfolder, 1, 1, 1000); //stop when there is 0 overlap and try it until level_3
-			return AStar(laser);
-		}
-
 		//try to unfolde the keep faces and then toss faces
 		BloomingUnfolding::Net BloomingUnfolding::AStar2Steps()
 		{
-#if 0
-			//
-			//get creases from the current unfolding
-			//we assume that this is the best blooming unfolding
-			//
-			model * mesh=m_unfolder->getModel();
-
-			//create a net from the creases
-			Net start=getNet(m_unfolder);
-			AStar_Helper_Keep keep(start, m_unfolder, 1, 3, 1000); //stop when there is 0 overlap and try it until level_3
-			Net keep_net = AStar(keep);
-			m_unfolder->buildFromWeights(keep_net.encode());
-			return keep_net;
-
-			//recompute the types of the faces using keep_net
-			keep_net.optimalcuts(m_unfolder);
-			keep_net.compute_face_types(m_unfolder); //update the face type so everything that is not
-			//return keep_net;
-
-			//start another round with toss faces
-			m_unfolder->buildFromWeights(keep_net.encode());
-			Net start2=getNet(m_unfolder);
-
-			//
-			AStar_Helper_Toss toss(start2, m_unfolder, 0, 1); //stop when there is 0 overlap and try it only for level_1
-			return AStar(toss);
-#else
 			//this version create a submodel and unfold that submodel first
 			model * mesh=m_unfolder->getModel();
 
@@ -321,7 +273,7 @@ namespace masc {
 			{//find optimal unfolding for this keep_unfolder
 				Net start=getNet(keep_unfolder);
 				compute_face_types(keep_unfolder);
-				AStar_Helper_Mixed keep(start, keep_unfolder, 1,3,1000); //stop when there is 0 overlap and try it until level_3
+				AStar_Helper_Mixed keep(start, keep_unfolder, 0,3,1000); //stop when there is 0 overlap and try it until level_3
 				Net keep_net = AStar(keep);
 				keep_unfolder->buildFromWeights(keep_net.encode());
 
@@ -344,7 +296,7 @@ namespace masc {
 						const triangle& t1=keep_mesh->tris[e.fid.front()];
 						const triangle& t2=keep_mesh->tris[e.fid.back()];
 						int eid=mesh->getEdgeIdByFids(t1.source_fid,t2.source_fid);
-						assert(eid>=0 &&eid<m->e_size);
+						assert(eid>=0 &&eid<mesh->e_size);
 						ic[eid] = 0.1;
 					}
 				}
@@ -358,7 +310,6 @@ namespace masc {
 			start.compute_face_types(m_unfolder); //update the face type so everything that is not
 			AStar_Helper_Toss toss(start, m_unfolder, 0, 1,1000); //stop when there is 0 overlap and try it only for level_1
 			return AStar(toss);
-#endif
 		}
 
 		BloomingUnfolding::Net BloomingUnfolding::AStar(AStar_Helper& help)
@@ -397,7 +348,8 @@ namespace masc {
 					     <<" h="<<help.heuristics(net)<< endl;
 					return net;
 				}
-				else if (help.heuristics(net)+1 <= help.heuristics(best_net))
+				else if ( (help.heuristics(net)+1 <= help.heuristics(best_net)) ||
+				( (help.heuristics(net)== help.heuristics(best_net)) && help.dist(net,ecosts)<help.dist(best_net,ecosts)) )
 				{
 						cout << "- Best net overlaps=" << help.heuristics(net)
 							<< " dist=" << help.dist(net,ecosts) << " open size=" << open.size() << endl;
@@ -725,11 +677,14 @@ namespace masc {
 
 			//build mesh
 			model * subm = new model();
+			subm->name=m->name;
 			if (subm->build(data, true) == false)
 			{
 				cerr << "! Error: Failed to build a model from net" << endl;
 				return NULL;
 			}
+
+			subm->makeManifold();
 
 			//register the new fid to the old fid
 			auto fid_it = fids.begin();
@@ -804,10 +759,6 @@ namespace masc {
 				}
 
 
-
-
-
-
 //
 //
 // A* sub-modules
@@ -855,8 +806,9 @@ float BloomingUnfolding::AStar_Helper_Mixed::dist
 			for (int i = 0; i < m->e_size; i++){
 				if (this->root.encode()[i] != net.encode()[i]){
 					const edge& e=m->edges[i];
-	#if 1
-					flips++;
+	#if 0
+					//flips++;
+					flips+=e.length;
 					//flips+=ecosts[i]/10000.0f;
 	#else
 					const triangle& t1=m->tris[e.fid.front()];
@@ -924,241 +876,7 @@ float BloomingUnfolding::AStar_Helper_Mixed::heuristics
 }
 
 //-------------------
-//optimize only the KEEP faces
-
-list<BloomingUnfolding::Net>
-BloomingUnfolding::AStar_Helper_Keep::neighbors
-(BloomingUnfolding::Net& net)
-{
-	list<Net> neis;
-	model * m=unfolder->getModel();
-	int fbase=unfolder->getBaseFaceID();
-	const BitVector& code=net.encode();
-
-	//go through each edge
-	for (int i = 0; i < m->e_size; i++) {
-		const edge& e=m->edges[i];
-		if (!code[i] || e.type=='d' || e.type=='b') continue;
-		if(isKeep(i)==false) continue; //not a keep edge
-
-		list<int> nids = neighbor_edges(code, m, i);
-		for (int id : nids) {
-			//we also need to make sure that this edge is also incident to keep only
-			if(isKeep(id)==false) continue; //not a keep edge
-
-			auto ncode = code;
-			ncode.off(i);// = false;
-			ncode.on(id);// = true;
-			neis.push_back(Net(unfolder, fbase, ncode));
-		}
-	}//end for i
-
-	return neis; //netghbors of this net
-}
-
-/*
-//count number of flips of bits from KEEP edges
-float BloomingUnfolding::AStar_Helper_Keep::dist
-(BloomingUnfolding::Net& net, const vector<float>& ecosts)
-{
-	if (net.G() == FLT_MAX || g_recompute_dist) {
-
-		float g=0;
-		model * m=unfolder->getModel();
-
-		if (g_dist_level <= 2) {
-
-			//# of bits flipped
-			float flips = 0;
-			for (int i = 0; i < m->e_size; i++){
-				if (this->root.encode()[i] != net.encode()[i]){
-					if(isKeep(i)==false){
-						cerr<<"! Error: BloomingUnfolding::AStar_Helper_Keep::dist: Edges should be KEEP edges"<<endl;
-						exit(1);
-					}
-					//cout<<"ecosts["<<i<<"]="<<ecosts[i]<<" this->root.encode()[i]="<<this->root.encode()[i]<<endl;
-					//const edge& e=m->edges[i];
-					flips+=(ecosts[i]); //e.length;
-				}
-			}
-			g = flips;
-
-			//done
-			if (g_dist_level == 1) {
-				//decrease of # of leaves
-				int leaf_score = (root.getLeafSize() - net.getLeafSize()); //more leaf is better
-				//if (leaf_score < 0) leaf_score = 0;
-
-				//increase of diameter
-				int dia_score = (net.getDepth() - root.getDepth()); //weighted by 100
-				//if (dia_score < 0) dia_score = 0;
-
-				g += leaf_score + dia_score;
-			}
-		}
-		else g = 0; //g_dist_level>2
-
-		net.G()=g;
-	}
-
-	return net.G();
-}
-
-//only counting the overlaps between KEEP faces
-float BloomingUnfolding::AStar_Helper_Keep::heuristics(BloomingUnfolding::Net& net)
-{
-	if (net.H() == FLT_MAX) {
-		float h=0;
-
-		//unfold
-		model * m=unfolder->getModel();
-		unfolder->buildFromWeights(net.encode());
-
-#if 0
-		{
-			const vector<set<uint>>& overlaps = unfolder->getOverlppingFacePairs();
-			int overlap_count = 0;
-			for(int i=0;i<m->t_size;i++){
-				const set<uint>& o=overlaps[i];
-				if(o.empty()) continue;
-				const triangle& ti=m->tris[i];
-				auto type=(BloomingUnfolding::FACE_TYPE)ti.cluster_id;
-				if(type==BloomingUnfolding::BASE_FACE){ //overlap with base face?
-					overlap_count=INT_MAX;
-					break;
-				}
-				if(type!=BloomingUnfolding::KEEP_FACE) continue;
-				for(int j : o){
-					const triangle& tj=m->tris[j];
-					type=(BloomingUnfolding::FACE_TYPE)tj.cluster_id;
-					if(type!=BloomingUnfolding::KEEP_FACE) continue;
-					overlap_count++;
-				}
-			}
-			h = overlap_count;
-		}
-#else
-		{
-			auto bkup=g_face_cost[TOSS_FACE];
-			g_face_cost[TOSS_FACE]=0.0001; //don't record anything from TOSS faces
-			h = overlapping_cost(unfolder);
-			g_face_cost[TOSS_FACE]=bkup;
-		}
-#endif
-
-		net.H()=h;
-	}
-
-	return net.H();
-}
-*/
-
-bool BloomingUnfolding::AStar_Helper_Keep::isKeep(int eid) //is the edge incident to keep faces
-{
-	model * m=unfolder->getModel();
-	const edge& e=m->edges[eid];
-
-	for(int f : e.fid){
-		const triangle& t = m->tris[f];
-		auto type=(BloomingUnfolding::FACE_TYPE)t.cluster_id;
-		if(type!=BloomingUnfolding::KEEP_FACE) return false;
-	}
-
-	return true;
-}
-
-
-
-	float BloomingUnfolding::AStar_Helper_Keep2::heuristics(Net& net)
-	{
-		if (net.H() == FLT_MAX) {
-			float h=0;
-
-			//unfold
-			model * m=unfolder->getModel();
-			unfolder->buildFromWeights(net.encode());
-			//vector<float> face_areas(m->t_size, 0); //
-			//net.compute_area_in_subnet(m, unfolder->getBaseFaceID(), face_areas);
-
-	#if 0
-			{
-				const vector<set<uint>>& overlaps = unfolder->getOverlppingFacePairs();
-				int overlap_count = 0;
-				for(int i=0;i<m->t_size;i++){
-					const set<uint>& o=overlaps[i];
-					if(o.empty()) continue;
-					const triangle& ti=m->tris[i];
-					auto type=(BloomingUnfolding::FACE_TYPE)ti.cluster_id;
-					if(type==BloomingUnfolding::BASE_FACE){ //overlap with base face?
-						overlap_count=INT_MAX;
-						break;
-					}
-					if(type!=BloomingUnfolding::KEEP_FACE) continue;
-					for(int j : o){
-						const triangle& tj=m->tris[j];
-						type=(BloomingUnfolding::FACE_TYPE)tj.cluster_id;
-						if(type!=BloomingUnfolding::KEEP_FACE) continue;
-						overlap_count++;
-					}
-				}
-				h = overlap_count;
-			}
-	#else
-			{
-				auto bkup=g_face_cost[TOSS_FACE];
-				g_face_cost[TOSS_FACE]=0; //don't record anything from TOSS faces
-				h = overlapping_cost(unfolder);
-				g_face_cost[TOSS_FACE]=bkup;
-			}
-	#endif
-
-			net.H()=h;
-		}
-
-		return net.H();
-	}
-
-
-
-	bool BloomingUnfolding::AStar_Helper_Keep2::isKeep(int eid){
-		model * m=unfolder->getModel();
-		const edge& e=m->edges[eid];
-
-		for(int f : e.fid){
-			const triangle& t = m->tris[f];
-			auto type=(BloomingUnfolding::FACE_TYPE)t.cluster_id;
-			if(type!=BloomingUnfolding::KEEP_FACE) return false;
-		}
-
-		return true;
-	}
-
-
-//
-//bool BloomingUnfolding::AStar_Helper_Toss::Keep_KID(BloomingUnfolding::Net& net, int f)
-//{
-//	model * m = unfolder->getModel();
-//	const triangle& t = m->tris[f];
-//	auto type = (BloomingUnfolding::FACE_TYPE)t.cluster_id;
-//	if (type == BloomingUnfolding::KEEP_FACE) return true;
-//	for (int kid : net.Kids(f))
-//		if (Keep_KID(net,kid)) return true;
-//	return false;
-//}
-//
-//bool  BloomingUnfolding::AStar_Helper_Toss::Keep_SUBNET(BloomingUnfolding::Net& net, int e)
-//{
-//	model * m = unfolder->getModel();
-//	int f1 = m->edges[e].fid.front();
-//	int f2 = m->edges[e].fid.back();
-//
-//	if (f1 == net.Parent(f2)) return Keep_KID(net, f2);
-//	if (f2 == net.Parent(f1)) return Keep_KID(net, f1);
-//
-//}
-
-//-------------------
-//in this helper, we only flip the edges so there without affecting the keep faces
+//in this helper, we only flip the edges without affecting the keep faces
 list<BloomingUnfolding::Net> BloomingUnfolding::AStar_Helper_Toss::neighbors(BloomingUnfolding::Net& net)
 {
 	list<Net> neis;
@@ -1296,7 +1014,6 @@ float BloomingUnfolding::AStar_Helper_Toss::heuristics(BloomingUnfolding::Net& n
 	return net.H();
 }
 
-
 bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge incident to keep faces
 {
 	model * m=unfolder->getModel();
@@ -1310,93 +1027,6 @@ bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge inciden
 
 	return true;
 }
-
-
-
-
-
-
-
-//-------------------
-//in this helper, we only flip the edges so there without affecting the keep faces
-
-float BloomingUnfolding::AStar_Helper_Laser::dist
-(BloomingUnfolding::Net& net, const vector<float>& ecosts)
-{
-		if (net.G() == FLT_MAX || g_recompute_dist) {
-			float flips = 0;
-			for (int i = 0; i < net.encode().size(); i++){
-				if (this->root.encode()[i] != net.encode()[i]) flips++;
-			}
-			net.G()=flips;
-		}
-
-		return net.G();
-}
-
-float BloomingUnfolding::AStar_Helper_Laser::heuristics
-(BloomingUnfolding::Net& net)
-{
-
-		if (net.H() == FLT_MAX) {
-			float h=0;
-			//number of overlaps
-			int n=unfolder->buildFromWeights(net.encode());
-
-			if(n>0) h=FLT_MAX/2; //no overlapping allowed
-			else h=evaluate_folding_motion(unfolder);
-			net.H()=h;
-		}
-
-		return net.H();
-}
-
-
-//return the number of colliding face during the folding process
-int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * unfolder)
-{
-			//cout<<"- Evaluate folding motion....."<<endl;
-			unordered_set<int> colliding;
-			model * mesh=unfolder->getModel();
-
-			for(float i=1.0;i>=0;i-=0.0025f)
-			{
-				unfolder->unfoldTo(i);
-				if (i >= 0.990001){
-					int count=unfolder->checkOverlaps();
-					//cout<<count<<" collision found... at step="<<i<<endl;
-					if(count>0){
-						const vector<set<uint>>& overlaps = unfolder->getOverlppingFacePairs();
-						for(int i=0;i<mesh->t_size;i++){
-							if(overlaps[i].empty()) continue;
-							colliding.insert(i);
-							//cout<<"face["<<i<<"] overlaps with";
-							//for(int o : overlaps[i]) cout<<o<<";";
-							//cout<<endl;
-						}
-					}
-				}
-				else{
-						int count=unfolder->checkCollision();
-						//cout<<count<<" collision found... at step="<<i<<endl;
-						if(count>0){
-							for(int j=0;j<mesh->t_size;j++){
-								triangle& t=mesh->tris[j];
-								if(!t.overlapped) continue;
-								colliding.insert(j);
-								//cout<<"face["<<j<<"] overlapped"<<endl;
-							}//end for j
-						}
-				}
-			}//end for i
-
-		/*	cout<<"\t- Colliding faces: ";
-			for(int i : colliding) cout<<i<<";";
-			cout<<endl;*/
-
-			return colliding.size();
-}
-
 
 
 		  //
@@ -1723,10 +1353,36 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 			return cost;
 		}
 
-		//find optimal cuts of the net
+
+		//find optimal trim (instead of cut) of the net to avoid collision
+		//in this case, we will remove the overlapping part of the face instead of cutting off the entire face
+		//the code that trime the face will be performed later in method: XXXX
+		//the input "overlap" would be modified to record the faces to be trimmed
+		//note that in this case, the net won't change; it is only the mesh that will need to be modified
+		float BloomingUnfolding::Net::optimaltrims(Unfolder *unfolder, vector<set<uint>>& overlaps)
+		{
+			model * m = unfolder->getModel();
+			BitVector killed(m->t_size); //record what face is removed
+			BitVector new_code=this->code;
+
+			vector<float> face_areas(m->t_size, 0); //
+			compute_area_in_subnet(m, this->root, face_areas);
+			list<int> Q; //a queue
+			Q.push_back(unfolder->getBaseFaceID());
+			float cost = optimalcuts(unfolder, Q, new_code, killed, face_areas, overlaps);
+
+			//TODO:
+			//compute the difference between the new_code and this->code
+
+			//the difference will tell us where the optimal cuts would be made
+			//update overlaps to only remember these faces that would be cut
+			//these are the faces that should be trimmed to avoid collision
+
+		}
+
+		//find optimal cuts of the net to avoid collision
 		//return cost of cutting the net
-		//the resulting net is stored in B
-		float BloomingUnfolding::Net::optimalcuts(Unfolder *unfolder)
+		float BloomingUnfolding::Net::optimalcuts(Unfolder *unfolder, const vector<set<uint>>& overlaps)
 		{
 			model * m = unfolder->getModel();
 			BitVector killed(m->t_size); //record what face is removed
@@ -1735,12 +1391,13 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 			compute_area_in_subnet(m, this->root, face_areas);
 			list<int> Q; //a queue
 			Q.push_back(unfolder->getBaseFaceID());
-			float cost = optimalcuts(unfolder, Q, this->code, killed, face_areas);
+			float cost = optimalcuts(unfolder, Q, this->code, killed, face_areas, overlaps);
 
 			//this is a temporary patch....for the diagonal edges that are cut due to intersection....
-			//this should be handled in more general ways
+			//diagonal edges are not supposed to be cut so we need to find a non-diagonal edge (likely its parent)
+			//Note: this should be handled in more general ways
 			for (int i = 0; i < m->e_size; i++) {
-				if (code[i] != 0) continue;
+				if (this->code[i] != 0) continue;
 				edge& e = m->edges[i];
 				if (e.type == 'd') {
 					//find the parent....
@@ -1753,7 +1410,7 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 						cerr << "! Error: BloomingUnfolding::Net::optimalcuts" << endl;
 						exit(1);
 					}
-					cout << "cut " << pe << " becaus " << i << " is cut and is a diagonal edge" << endl;
+					cout << "cut " << pe << " because " << i << " is cut and is a diagonal edge" << endl;
 					code.off(pe);
 				}
 			}
@@ -1763,15 +1420,12 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 			return cost;
 		}
 
-		void BloomingUnfolding::Net::killDecendents(uint fid, BitVector& killed) {
-			killed.on(fid);
-			for (uint kid : this->kids[fid])  killDecendents(kid,killed);
-		}
-
 		//find optimal cuts of the net
 		//return cost of cutting the net
 		//the resulting net is stored in B
-		float BloomingUnfolding::Net::optimalcuts(Unfolder *unfolder, list<int>& Q, BitVector& B, BitVector& killed, const vector<float>& face_areas)
+		float BloomingUnfolding::Net::optimalcuts
+		(Unfolder *unfolder, list<int>& Q, BitVector& B, BitVector& killed,
+		 const vector<float>& face_areas, const vector<set<uint>>& _O)
 		{
 			if (Q.empty()) return 0; ///nothing to see here
 
@@ -1780,12 +1434,13 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 			Q.pop_front();
 
 			if (killed[f]) {
-				float cost= optimalcuts(unfolder, Q, B, killed, face_areas);
+				float cost= optimalcuts(unfolder, Q, B, killed, face_areas, _O);
 				return cost;
 			}
 
 			//original overlaps
-			const set<uint>& overlaps_orig = unfolder->getOverlppingFacePairs()[f];
+			const set<uint>& overlaps_orig = _O[f];
+
 			list<uint> overlaps; //updated overlaps
 			for (uint o : overlaps_orig) {
 				if (!killed[o]) overlaps.push_back(o);
@@ -1797,7 +1452,7 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 					const edge& e = m->edges[eid];
 					if (e.type == 'd' || B[eid]) Q.push_back(kid);
 				}
-				float cost= optimalcuts(unfolder, Q, B, killed, face_areas);
+				float cost= optimalcuts(unfolder, Q, B, killed, face_areas, _O);
 				return cost;
 			}
 
@@ -1825,7 +1480,7 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 					if (e.type == 'd' || B[eid]) Q1.push_back(kid);
 				}
 				if (!Q1.empty())
-					cost1 += optimalcuts(unfolder, Q1, B1, K1, face_areas);
+					cost1 += optimalcuts(unfolder, Q1, B1, K1, face_areas, _O);
 			}
 
 			//case 2, remove f
@@ -1837,7 +1492,7 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 				B2.off(eid);
 				killDecendents(f, K2);
 
-				cost2 = optimalcuts(unfolder, Q, B2, K2, face_areas);
+				cost2 = optimalcuts(unfolder, Q, B2, K2, face_areas, _O);
 				auto ftype = (BloomingUnfolding::FACE_TYPE)m->tris[f].cluster_id;
 				cost2 += g_face_cost.at(ftype)*face_areas[f];
 			}
@@ -1943,9 +1598,14 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 			m->tris[fbase].cluster_id = BASE_FACE;
 		}
 
+		void BloomingUnfolding::Net::killDecendents(uint fid, BitVector& killed) {
+			killed.on(fid);
+			for (uint kid : this->kids[fid])  killDecendents(kid,killed);
+		}
+
 		//
 		//
-		// FlowerBloomingSplitter
+		// FlowerBloomingSplitter (Not USED)
 		//
 		//
 
@@ -1961,131 +1621,6 @@ int BloomingUnfolding::AStar_Helper_Laser::evaluate_folding_motion(Unfolder * un
 			//cout<<"-m_model->tris[m_base].n="<<-m_model->tris[m_base].n<<endl;
 			return -m_model->tris[m_base].n;
 		}
-
-/*
-		StarBloomingSplitter::StarBloomingSplitter(model* m, int base)
-			:FlowerBloomingSplitter(m, base)
-		{
-			//find vertices at the base
-			list<int> coplanars;
-			getCoplanarFaces(m, base, coplanars);
-			for (int fid : coplanars) {
-				for (int i = 0; i < 3; i++) m_base_vids.insert(m->tris[fid].v[i]);
-			}
-
-			//now find the cuts by building the dijstra tree
-			vector< pair<float, int> > open;
-			for (int vid : m_base_vids) {
-				vertex& v = m_model->vertices[vid];
-				v.source_vid = vid;
-				v.cut_src_id = vid;
-				v.score = 0;
-				open.push_back(make_pair(0, vid));
-			}
-			make_heap(open.begin(), open.end());
-			//run dijstra from vertices of the base face
-			while (!open.empty()) {
-
-				pair<float, int> o = open.front();
-				pop_heap(open.begin(), open.end());
-				open.pop_back();
-				int vid = o.second;
-				vertex& v = m_model->vertices[vid];
-				if (o.first > v.score) continue; //out of date data
-
-				//spread to the neighbors
-				for (int eid : v.m_e) {
-					edge& e = m_model->edges[eid];
-					int nid = e.otherv(vid);
-					vertex& n = m_model->vertices[nid];
-					bool updated = false;
-
-					if (n.cut_src_id == UINT_MAX) updated = true;//not visited
-					else if (n.score > e.length + v.score) updated = true;//visited, but found a shorter path
-
-					if (updated) {
-						n.score = e.length + v.score;
-						n.cut_src_id = vid; //parent
-						n.source_vid = v.source_vid; //root
-						open.push_back(make_pair(n.score, nid));
-						push_heap(open.begin(), open.end());
-					}
-
-				}//end for nei
-			}//end while
-
-			//go through all vertices and collect local maxium
-			list<int> local_max_vids;
-
-			for (int i = 0; i < m_model->v_size; i++) {
-				vertex& v = m_model->vertices[i];
-				cout << "v[" << i << "].score=" << v.score << endl;
-				//check if v is local max
-				bool local_max = true;
-				for (int eid : v.m_e) {
-					vertex& n = m_model->vertices[m_model->edges[eid].otherv(i)];
-					if (n.score > v.score) {
-						local_max = false;
-						break;
-					}
-				}//end for eid
-
-				if (local_max)
-					local_max_vids.push_back(i);
-			}//end for i
-
-			//trace back to the base face
-			m_cut_edges.clear();
-			for (int vid : local_max_vids) {
-				cout << "local max=" << vid << endl;
-				trace(vid, m_cut_edges);
-				vertex& v = m_model->vertices[vid];
-				//check if its neighor can lead to other source in the same
-				//distance
-				for (int eid : v.m_e) {
-					int nid = m_model->edges[eid].otherv(vid);
-					if (nid == v.cut_src_id) continue; //parent
-					vertex& n = m_model->vertices[nid];
-					if (n.score + m_model->edges[eid].length == v.score && v.source_vid != n.source_vid) {
-						v.cut_src_id = nid;
-						trace(vid, m_cut_edges);//trace again with this new parent
-					}
-				}//end for eid
-			}//end of vid
-
-			for (int eid : m_cut_edges) {
-				edge& e = m_model->edges[eid];
-				cout << "cut (" << e.fid.front() << "," << e.fid.back() << ")" << endl;
-			}
-
-			//reset
-			for (int i = 0; i < m_model->v_size; i++) {
-				vertex& v = m_model->vertices[i];
-				v.score = 0;
-				v.cut_src_id = UINT_MAX;
-				v.source_vid = UINT_MAX;
-			}//end for i
-
-		}
-
-		//trace a list of edges
-		void StarBloomingSplitter::trace(int vid, unordered_set<int>& eids)
-		{
-			while (true) {
-				vertex& v = m_model->vertices[vid];
-				int p = v.cut_src_id;
-				if (p == vid) break; //root here
-				eids.insert(m_model->getEdgeId(vid, p));
-				vid = p;
-			}
-		}
-
-		void StarBloomingSplitter::assignWeightsImpl(model* m, vector<float>& weights, const Config& config)
-		{
-			FlowerBloomingSplitter::assignWeightsImpl(m, weights, config);
-			for (int eid : m_cut_edges) weights[eid] = 10;
-		}
-*/
 
 		//get a list of  faces coplanar to the given face
 		//the return list include the face itself

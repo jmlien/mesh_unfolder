@@ -19,11 +19,11 @@ bool gli::m_DisalbeMouseControl=false;
 
 GLfloat gli::m_currentAzim = 0;
 GLfloat gli::m_deltaAzim   = 0;
-GLfloat gli::m_currentElev = 0; 
+GLfloat gli::m_currentElev = 0;
 GLfloat gli::m_deltaElev   = 0;
 
-int gli::m_StartX        =0; 
-int gli::m_StartY        =0; 
+int gli::m_StartX        =0;
+int gli::m_StartY        =0;
 int gli::m_PressedButton =0;
 
 gli::GLI_DISPLAY_FUNC  gli::m_dislpayFunc  = NULL;
@@ -86,7 +86,7 @@ void gli::gliDisplay( void )
 
     //draw reference axis
     glMatrixMode(GL_PROJECTION); //change to Ortho view
-    glPushMatrix(); 
+    glPushMatrix();
     glLoadIdentity();
     gluOrtho2D(0,20,0,20);
 
@@ -112,7 +112,7 @@ void gli::gliDisplay( void )
     glEnd();
     glPopMatrix();
 	glEnable(GL_DEPTH_TEST);
-    
+
     //pop GL_PROJECTION
     glMatrixMode(GL_PROJECTION); //change to Pers view
     glPopMatrix();
@@ -198,8 +198,8 @@ gliMotion( int x, int y )
                     zoom_diff=fabs(initZ)/(initZ-m_CameraPos[2]+fabs(initZ));
                 }
 
-                m_deltaDis[0] = ((GLfloat)(x - m_StartX))*40*zoom_diff; //((m_CameraPos[0]>5)?m_CameraPos[0]:5) * ((GLfloat)(x - m_StartX))/20.0;
-                m_deltaDis[1] = ((GLfloat)(y - m_StartY))*40*zoom_diff; //((m_CameraPos[1]>5)?m_CameraPos[1]:5) * ((GLfloat)(y - m_StartY))/20.0;
+                m_deltaDis[0] = ((GLfloat)(x - m_StartX))*zoom_diff/40; //((m_CameraPos[0]>5)?m_CameraPos[0]:5) * ((GLfloat)(x - m_StartX))/20.0;
+                m_deltaDis[1] = ((GLfloat)(y - m_StartY))*zoom_diff/40; //((m_CameraPos[1]>5)?m_CameraPos[1]:5) * ((GLfloat)(y - m_StartY))/20.0;
             }
         }
         else if(m_PressedButton == GLUT_LEFT_BUTTON)

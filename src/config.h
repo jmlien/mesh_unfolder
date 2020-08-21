@@ -31,6 +31,7 @@ enum class CutHeuristic {
   CLUSTERING,         // c
   LP,                 // lp
   BLOOMING,           // bloom
+  LASER,              //laser
 };
 
 enum class Objective {
@@ -78,7 +79,7 @@ public:
 
 	//for blooming
 	this->blooming_strategy = "flower";
-	this->blooming_range = 0;
+	this->blooming_range = 1e-5; //small value to avoid 90 degree walls disconnecting the faces
 	this->blooming_dir = Vector3d(0, 0, 0);
 
 	//

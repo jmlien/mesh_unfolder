@@ -28,6 +28,7 @@ using namespace std;
 
 #include "ClusterUnfolding.h"
 #include "BloomingUnfolding.h"
+#include "LaserUnfolding.h"
 #include "LPUnfolding.h"
 #include "UnfoldingProblem.h"
 #include "CompactProblem.h"
@@ -104,6 +105,8 @@ bool parseArg(int argc, char ** argv) {
 		  config.heuristic = CutHeuristic::RANDOM_EDGE;
 	  else if (heuristic == "bloom")
 		  config.heuristic = CutHeuristic::BLOOMING;
+    else if (heuristic == "laser")
+      config.heuristic = CutHeuristic::LASER;
 	  else if (heuristic[0] == 'b')
 		  config.heuristic = CutHeuristic::BRUTE_FORCE;
 	  else if (heuristic == "ga")
@@ -219,6 +222,7 @@ bool parseArg(int argc, char ** argv) {
     } else if (arg == "-ordered") {
       config.unfolding_motion = Config::Ordered_Unfolding;
     } else if (arg == "-laser") {
+      config.blooming_strategy = argv[++i];
       config.unfolding_motion = Config::Laser_Unfolding;
     } else if (arg == "-pc") {
       config.pixel_checker = true;
@@ -355,6 +359,9 @@ void printUsage(char * name) {
 	  << default_config.blooming_range << "'\n";
   cerr << "  -bloom-dir | blooming direction. The defaul is the base normal dir\n";
 
+  cerr << "Laser\n";
+  cerr << "  -laser alg   | specify laser algorithm: same as -bloom\n";
+
   cerr <<"Net Optimization\n";
   cerr << "  -objective # | specify the objective for optimization\n";
   cerr << "     hull_area (minimize convex hull area)\n";
@@ -456,6 +463,22 @@ inline Unfolder* run_blooming_unfolder(Unfolder* unfolder)
   return unfolder;
 }
 
+
+inline Unfolder* run_laser_unfolder(Unfolder* unfolder)
+{
+	cout << "- Laser module" << endl;
+	LaserUnfolding problem(unfolder);
+	if (problem.setup(config.blooming_strategy))
+	{
+		problem.run();
+    return problem.getUnfolder();
+	}
+	else {
+		cerr << "Error! Failed to setup Laser Unfolding" << endl;
+	}
+  return unfolder;
+}
+
 bool unfold()
 {
   long vsize = 0;
@@ -505,7 +528,10 @@ bool unfold()
 	}else if (config.heuristic == CutHeuristic::BLOOMING) {
 	  unfolder=run_blooming_unfolder(unfolder);
     m=unfolder->getModel();
-    } else if (config.heuristic == CutHeuristic::LP) {
+  } else if (config.heuristic == CutHeuristic::LASER) {
+  	  unfolder=run_laser_unfolder(unfolder);
+      m=unfolder->getModel();
+      } else if (config.heuristic == CutHeuristic::LP) {
       //deprecated
       // LPUnfolding problem(unfolder);
       // showUnfold = false;

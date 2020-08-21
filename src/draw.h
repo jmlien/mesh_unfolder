@@ -164,8 +164,10 @@ inline void DisaplayUnfold(Unfolder& unfolder) {
       if (showEdgeTypes) {
         if (e.diagonal) {
           glColor3f(0.0f, 1.0f, 0.0f);
+          continue;
         } else if (e.folding_angle == 0) {
-          glColor3f(0.5f, 0.5f, 0.5f);
+          if(e.type=='b') glColor3f(0.5f, 0.5f, 0.5f);
+          else continue;
         } else if (e.folding_angle > 0) {
           glColor3f(1.0f, 0.0f, 0.0f);
         } else {
