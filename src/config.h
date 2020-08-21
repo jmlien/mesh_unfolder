@@ -294,7 +294,8 @@ public:
   // whether to find the best base face
   bool find_best_base_face;
 
-  enum Unfolding_Motion {Linear_Unfolding, Ordered_Unfolding, Laser_Unfolding};
+  enum Unfolding_Motion {Linear_Unfolding, Ordered_Unfolding, Laser_Unfolding, Uniform_Unfolding};
+
   // whether the unfolding is ordered
   Unfolding_Motion unfolding_motion;
 

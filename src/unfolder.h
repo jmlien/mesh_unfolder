@@ -392,12 +392,15 @@ private:
   /// count: number of faces to fold in order
   void linearUnfoldTo(double p, const int count = INT_MAX);
 
-  /// unfold the model by order
+  /// unfold the model by order (unfold leaves first)
   void orderedUnfoldTo(double p);
 
 	/// unfold using outside-in laser forming order
 	/// kind of the reverse of orderedUnfoldTo
 	void laserUnfoldTo(double p);
+
+	//constant unfolding speed.
+	void uniformUnfoldTo(double p);
 
   /// compute the unfolding based the MST
   /// 	1. parent of each face
@@ -477,7 +480,7 @@ private:
 
   //////////////////////////////////////////////////////////////////////////
 
-  /// ordered face list
+  /// ordered face list in BSF order from the base face
   vector<uint> m_ordered_face_list;
   // ordered crease list (in eid)
   vector<uint> m_ordered_crease_list;
@@ -616,6 +619,10 @@ private:
   // unfolding properties
   double m_avg_path_len;
   double m_max_path_len;
+
+	//max/min folding angles
+	double m_max_crease_angle;
+	double m_min_crease_angle;
 
   // overlapping triangles {fid1, {fid2}}
   vector< set<uint> > m_overlap_pairs;

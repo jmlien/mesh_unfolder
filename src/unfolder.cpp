@@ -49,8 +49,10 @@ Unfolder::Unfolder(model* m, const Config& config)
   this->m_flat_edges = 0;
   this->m_color = Vector3d(0.8, 0.8, 0.8);
   this->m_is_flattened = false;
-  this->m_max_edge_length = FLT_MIN;
-  this->m_min_edge_length = FLT_MAX;
+  this->m_max_edge_length  = -FLT_MAX;
+  this->m_min_edge_length  =  FLT_MAX;
+  this->m_max_crease_angle = -FLT_MAX;
+  this->m_min_crease_angle =  FLT_MAX;
   this->m_top_vertex_id = INT_MIN;
   this->m_spliiter = nullptr;
   this->m_cd = new RAPID_CD(this);
@@ -442,6 +444,9 @@ void Unfolder::linearUnfoldTo(double percentage, const int count) {
   this->unfoldTo(folding_angles);
 }
 
+
+//unfold the faces from the leaf faces first
+//that is to say when we fold, we will fold base face first and then outward to the adjacent faces
 void Unfolder::orderedUnfoldTo(double percentage) {
 
   int count = this->m_m->t_size * percentage;
@@ -494,6 +499,9 @@ void Unfolder::orderedUnfoldTo(double percentage) {
 
 }
 
+// the revser of orderedUnfoldTo. i.e.,
+// this will unfold the faces adjacent to the baseface
+// when fold, this will fold the leaf faces first and then their parents.
 void Unfolder::laserUnfoldTo(double percentage) {
 
   int count = this->m_m->t_size * percentage;
@@ -510,6 +518,7 @@ void Unfolder::laserUnfoldTo(double percentage) {
 
   int c = 0;
 
+  //start from 1 because the first is the baseface....
   for (int i=1;i<face_list.size();i++) {
     auto fid=face_list[i];
     ++c;
@@ -546,6 +555,56 @@ void Unfolder::laserUnfoldTo(double percentage) {
   this->unfoldTo(folding_angles);
 
 }
+
+
+//unfolding with const speed.
+void Unfolder::uniformUnfoldTo(double percentage)
+{
+  //compute the folding range
+  if(this->m_max_crease_angle==-FLT_MAX)
+  {
+      for(int ie=0;ie<this->m_m->e_size;ie++){
+        const auto& e = this->m_m->edges[ie];
+        double angle=fabs(e.folding_angle);
+        if(angle>m_max_crease_angle) m_max_crease_angle=angle;
+      }
+  }
+
+  double left=m_max_crease_angle*(1-percentage);//angle left to unfold
+  
+  assert(!std::isnan(cur_angle));
+
+  vector<double> folding_angles(m_m->e_size);
+
+  for (auto fid : m_ordered_face_list) {
+
+    // no need to unfold base_face;
+    if (fid == this->m_base_face_id)
+      continue;
+
+    // faces of tabs
+    if (fid >= this->m_m->t_size)
+      break;
+
+    const auto pfid = m_parents[fid];				// get parent face id
+    assert(pfid >= 0 && pfid < this->m_m->t_size);
+
+    const auto& f = this->m_m->tris[fid];				// current_face
+    const auto& pf = this->m_m->tris[pfid];				// parent_face
+    const auto eid = this->m_shared_edge[fid][pfid];	// shared edge id
+    const auto& e = this->m_m->edges[eid];				// shared edge
+
+    if(  left< fabs(e.folding_angle)){
+      folding_angles[eid]= -e.folding_angle + ((e.folding_angle<0)?-left:left);
+    }
+    else{
+      folding_angles[eid]=0;
+    }
+  }
+
+  this->unfoldTo(folding_angles);
+}
+
 
 
 //void Unfolder::foldToCompactState() {
@@ -587,10 +646,16 @@ void Unfolder::unfoldTo(double percentage) {
     percentage = 1.0f;
 
   if (m_config.unfolding_motion==Config::Ordered_Unfolding) {
+    //unfold leaf first
     this->orderedUnfoldTo(percentage);
   }
   else if (m_config.unfolding_motion==Config::Laser_Unfolding) {
+    //unfold faces adjcent to baseface first (i.e. inside-out folding)
     this->laserUnfoldTo(percentage);
+  }
+  else if (m_config.unfolding_motion==Config::Uniform_Unfolding) {
+    //unfold and fold with const speed
+    this->uniformUnfoldTo(percentage);
   }
   else {
     this->linearUnfoldTo(percentage);

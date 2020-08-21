@@ -1377,7 +1377,8 @@ bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge inciden
 			//the difference will tell us where the optimal cuts would be made
 			//update overlaps to only remember these faces that would be cut
 			//these are the faces that should be trimmed to avoid collision
-
+			
+			return 0;
 		}
 
 		//find optimal cuts of the net to avoid collision

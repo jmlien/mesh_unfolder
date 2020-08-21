@@ -221,7 +221,9 @@ bool parseArg(int argc, char ** argv) {
       config.find_best_base_face = false;
     } else if (arg == "-ordered") {
       config.unfolding_motion = Config::Ordered_Unfolding;
-    } else if (arg == "-laser") {
+    } else if (arg == "-uniform") {
+      config.unfolding_motion = Config::Uniform_Unfolding;
+    }else if (arg == "-laser") {
       config.blooming_strategy = argv[++i];
       config.unfolding_motion = Config::Laser_Unfolding;
     } else if (arg == "-pc") {
@@ -342,6 +344,10 @@ void printUsage(char * name) {
   cerr << "  -tab         | add tabs in the net.\n";
 
   cerr << "  -nbb         | do not find best base face.\n\n";
+
+  cerr << "  -ordered     | show unfolding in order from leaf faces to base face. \n\n";
+
+  cerr << "  -uniform     | show unfolding all creases in uniform speed. \n\n";
 
   cerr << "Clustering\n";
   cerr << "  -c filename  | specify the clustering config file. defualt = '"
