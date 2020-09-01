@@ -31,7 +31,8 @@ enum class CutHeuristic {
   CLUSTERING,         // c
   LP,                 // lp
   BLOOMING,           // bloom
-  LASER,              //laser
+  LASER,              // laser
+  EASILY_FOLDABLE,    // easy
 };
 
 enum class Objective {
@@ -54,7 +55,8 @@ enum class NetSurgery
 
 struct Config {
 public:
-  Config() {
+  Config()
+  {
     // flat tree is good for non-convex shapes
     this->heuristic = CutHeuristic::FLAT_TREE;
 
@@ -73,16 +75,16 @@ public:
     this->ga_max_gen = INT_MAX;
     this->ga_local_adj = 0;
 
-	//for cluster
+  	//for cluster
     this->cluster_config_filename = "unfolding.cluster";
     this->lp_config_filename = "unfolding.lp";
 
-	//for blooming
-	this->blooming_strategy = "flower";
-	this->blooming_range = 1e-5; //small value to avoid 90 degree walls disconnecting the faces
-	this->blooming_dir = Vector3d(0, 0, 0);
+  	//for blooming
+  	this->blooming_strategy = "flower";
+  	this->blooming_range = 1e-5; //small value to avoid 90 degree walls disconnecting the faces
+  	this->blooming_dir = Vector3d(0, 0, 0);
 
-	//
+	   //
     this->optimize_unfolding = false;
 
     this->k = -1;

@@ -84,7 +84,7 @@ namespace masc {
 
 			// will be called once after setup,
 			// can be used to override parameters
-			void virtual init();
+			virtual void init();
 
 
 			//perform blooming unfolding
@@ -135,6 +135,7 @@ namespace masc {
 				//access
 				float & G(){ return g; }
 				float & H(){ return h; }
+				int & Level() { return level; }
 				float getDepth() const { return depth; }
 				float getLeafSize() const { return leaves; }
 				float getHullArea() const { return m_hull_area; }
@@ -148,6 +149,7 @@ namespace masc {
 				float depth, leaves; //number of leaves and depth of the net
 				int n; //=code.size(), this should be the same for all nets
 				BitVector code;
+				int level;
 
 				//tree
 				int root; //root id, this should be the same for all nets
@@ -213,7 +215,7 @@ namespace masc {
 			Net AStar2Steps(); //try to unfolde the keep faces and then toss faces
 
 			//optimize the net with A*
-			Net AStar(AStar_Helper & help);
+			virtual Net AStar(AStar_Helper & help);
 
 			//build an unfolder that has only the KEEP_FACEs
 			Unfolder * build_keep_unfolder(Unfolder *unfolder);

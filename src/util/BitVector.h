@@ -39,7 +39,7 @@ namespace masc {
 			size_t operator()(const BitVector &v) const
 			{
 				size_t code = 0x2D2816FE;
-				for (int i : v.data) return code * 31 + i; //hash<int>()(i);
+				for (int i : v.data) code= code * 31 + i; //hash<int>()(i);
 				return code;
 			}
 		};

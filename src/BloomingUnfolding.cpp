@@ -158,11 +158,11 @@ namespace masc {
 					if (count < min_overlap_count) {
 						best_weights = weights;
 						min_overlap_count = count;
-						cerr << "- iter = " << r << ", total overlaps = " << count << "\r" << flush;
+						//cerr << "- iter = " << r << ", total overlaps = " << count << "\r" << flush;
 						if (count == 0) break; //done, found a net
 					}
 				}
-				cerr<<"\n"<<flush;
+				//cerr<<"\n"<<flush;
 
 				//finalize
 				unfolder->buildFromWeights(best_weights);
@@ -444,9 +444,10 @@ namespace masc {
 
 			//map<BitVector, float> gscore;
 			//map<BitVector, float> fscore;
-			set<BitVector> visted;
+			//set<BitVector> visted;
+			unordered_set<BitVector,hash_BitVector> visted;
+
 			//set<BitVector> closed;
-			//unordered_set<BitVector,hash_BitVector> visted;
 			//unordered_set<BitVector,hash_BitVector> closed;
 			//fscore[start.encode()] = start.heuristics(m_unfolder);
 			visted.insert(start.encode());
@@ -1043,6 +1044,7 @@ bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge inciden
 			this->g = other.g;
 			this->h = other.h;
 			this->n = other.n;
+			this->level=other.level;
 			this->depth = other.depth;
 			this->leaves = other.leaves;
 			this->parent = other.parent;
@@ -1061,6 +1063,7 @@ bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge inciden
 		{
 			//init data
 			this->root = root;
+			this->level=1;
 			g = h = m_hull_area=FLT_MAX;
 			this->n = code.size();
 			analyze(unfolder, code);
@@ -1218,6 +1221,7 @@ bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge inciden
 				getCoplanarFaces(m, fid, adj_faces);
 
 			//get cut edges incident to these faces
+			//JML: Why? Can't we use all cut edges?
 			set<int> cut_edges;
 			for (int fid : adj_faces) {
 				triangle& tri = m->tris[fid];
@@ -1377,7 +1381,7 @@ bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge inciden
 			//the difference will tell us where the optimal cuts would be made
 			//update overlaps to only remember these faces that would be cut
 			//these are the faces that should be trimmed to avoid collision
-			
+
 			return 0;
 		}
 
@@ -1641,6 +1645,7 @@ bool BloomingUnfolding::AStar_Helper_Toss::isKeep(int eid) //is the edge inciden
 
 				for (int i = 0; i < 3; i++) {
 					edge& e = m->edges[f.e[i]];
+					//const BitVector& code=net.encode();
 					if (e.type != 'd') continue;
 					int of = e.otherf(fid);
 					if (closed.find(of) != closed.end()) continue; //this can be slow, but we should not have too many faces in closed

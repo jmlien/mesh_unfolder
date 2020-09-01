@@ -29,6 +29,7 @@ using namespace std;
 #include "ClusterUnfolding.h"
 #include "BloomingUnfolding.h"
 #include "LaserUnfolding.h"
+#include "EasilyFoldableUnfolding.h"
 #include "LPUnfolding.h"
 #include "UnfoldingProblem.h"
 #include "CompactProblem.h"
@@ -107,6 +108,8 @@ bool parseArg(int argc, char ** argv) {
 		  config.heuristic = CutHeuristic::BLOOMING;
     else if (heuristic == "laser")
       config.heuristic = CutHeuristic::LASER;
+    else if (heuristic == "easy")
+        config.heuristic = CutHeuristic::EASILY_FOLDABLE;
 	  else if (heuristic[0] == 'b')
 		  config.heuristic = CutHeuristic::BRUTE_FORCE;
 	  else if (heuristic == "ga")
@@ -277,13 +280,13 @@ bool parseArg(int argc, char ** argv) {
     } else if (arg == "-polygon") {
       config.stencil_filename = argv[++i];
     } else if (arg == "-bloom") {
-	  config.blooming_strategy = argv[++i];
-	} else if (arg == "-bloom-range") {
-	  config.blooming_range = atof(argv[++i]);
-	} else if (arg == "-bloom-dir") {
-    for(short j=0;j<3;j++) config.blooming_dir[j]=atof(argv[++i]);
-	}
-	else if (arg[0] == '-') {
+	    config.blooming_strategy = argv[++i];
+  	} else if (arg == "-bloom-range") {
+  	  config.blooming_range = atof(argv[++i]);
+  	} else if (arg == "-bloom-dir") {
+      for(short j=0;j<3;j++) config.blooming_dir[j]=atof(argv[++i]);
+  	}
+  	else if (arg[0] == '-') {
       cerr << "!Error! Unknown arg = " << arg << endl;
       return false;
     } else {
@@ -312,7 +315,9 @@ void printUsage(char * name) {
   cerr << "     ga        | Genetic Algorithm\n";
   cerr << "      c        | Clustering based method\n";
   cerr << "     lp        | Linear Programming branch and bound based method\n";
-  cerr << "     bloom     | Blooming unfolding\n";
+  cerr << "     bloom     | Nearly Blooming unfolding\n";
+  cerr << "     laser     | Unfolding for laser forming\n";
+  cerr << "     easy      | Easily foldable unfolding\n";
   cerr << "\n";
 
   cerr << "Unfolding\n";
@@ -485,6 +490,23 @@ inline Unfolder* run_laser_unfolder(Unfolder* unfolder)
   return unfolder;
 }
 
+
+inline Unfolder* run_easily_foldable_unfolder(Unfolder* unfolder)
+{
+	cout << "- Easily Foldable Unfolding module" << endl;
+	EasilyFoldableUnfolding problem(unfolder);
+	if (problem.setup(""))
+	{
+		problem.run();
+    return problem.getUnfolder();
+	}
+	else {
+		cerr << "Error! Failed to setup Foldable Unfolding" << endl;
+	}
+
+  return unfolder;
+}
+
 bool unfold()
 {
   long vsize = 0;
@@ -531,7 +553,7 @@ bool unfold()
       unfolder->rebuildModel();
     } else if (config.heuristic == CutHeuristic::CLUSTERING) {
       run_cluster_unfolder(unfolder);
-	}else if (config.heuristic == CutHeuristic::BLOOMING) {
+	} else if (config.heuristic == CutHeuristic::BLOOMING) {
 	  unfolder=run_blooming_unfolder(unfolder);
     m=unfolder->getModel();
   } else if (config.heuristic == CutHeuristic::LASER) {
@@ -549,6 +571,9 @@ bool unfold()
       // } else {
       //   cerr << "Error! Failed to setup LP" << endl;
       // }
+    } else if (config.heuristic == CutHeuristic::EASILY_FOLDABLE) {
+  	  unfolder=run_easily_foldable_unfolder(unfolder);
+      m=unfolder->getModel();
     } else if (config.heuristic == CutHeuristic::GA) {
       run_ga_unfolder(unfolder);
     } else if (!config.label_filename.empty()) {
